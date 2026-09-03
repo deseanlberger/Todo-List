@@ -62,20 +62,35 @@ export function TaskRow({
           </span>
           <span className="t-meta shrink-0 text-text-faded">{blockCountLabel(task)}</span>
         </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="t-meta min-w-0 flex-1 truncate text-text-secondary">
-            <span style={{ color: labelColor(task.category) }}>{category}</span>
-            {location ? <> · {location}</> : null}
+        <div className="flex items-center justify-between gap-2">
+          {/*
+            The longest meta line the handoff shows — "HIGH PRIORITY ADMIN ·
+            HOME · DUE WED SEP 02" — needs 248px at 9px Roboto Mono, and the
+            spec-mandated 77px star row leaves 234 in a 390px frame. So the
+            category segment is the one allowed to shrink: it is already
+            carried by the 3px rail, whereas the due date is carried by
+            nothing else. The date never truncates.
+          */}
+          <span className="t-meta flex min-w-0 flex-1 text-text-secondary">
+            <span
+              className="truncate"
+              style={{ color: labelColor(task.category) }}
+            >
+              {category}
+            </span>
+            {location ? <span className="shrink-0">&nbsp;· {location}</span> : null}
             {due ? (
-              <>
-                {" · "}
-                {/* "Anything inside 48h reads urgent" — the sort explanation
-                    line promises it, so the row has to deliver it. */}
-                <span style={urgent ? { color: "var(--urgent)" } : undefined}>{due}</span>
-              </>
+              <span
+                className="shrink-0"
+                // "Anything inside 48h reads urgent" — the sort explanation
+                // line promises it, so the row has to deliver it.
+                style={urgent ? { color: "var(--urgent)" } : undefined}
+              >
+                &nbsp;· {due}
+              </span>
             ) : null}
           </span>
-          <span className="shrink-0" onClick={(event) => event.preventDefault()}>
+          <span className="-mr-1 shrink-0" onClick={(event) => event.preventDefault()}>
             <Stars value={task.financialImpact} onChange={onRate} />
           </span>
         </div>

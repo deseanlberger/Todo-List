@@ -145,7 +145,14 @@ export function AllTasks({
             />
           ))}
         </div>
-        <p className="t-meta mt-2.5 mb-3 text-text-faded">{SORT_EXPLANATION[sort]}</p>
+        {/* At 9px this runs to ~357px, wider than the 350px the frame
+            allows, so it wraps to a second line rather than being cut. */}
+        <p
+          className="t-meta mt-2.5 mb-3 text-text-faded"
+          style={{ lineHeight: 1.5 }}
+        >
+          {SORT_EXPLANATION[sort]}
+        </p>
       </div>
 
       <Content padding="px-5">

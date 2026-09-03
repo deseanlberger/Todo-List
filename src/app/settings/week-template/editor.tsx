@@ -58,6 +58,7 @@ export function WeekTemplateEditor({
   const router = useRouter();
   const [windows, setWindows] = useState<EditorWindow[]>(initialWindows);
   const [openDay, setOpenDay] = useState<number | null>(0);
+  const [editingTime, setEditingTime] = useState<string | null>(null);
   const [reset, setReset] = useState<10 | 15>(initialReset);
   const [cap] = useState(initialCap);
   const [weekendUncapped] = useState(initialWeekendUncapped);
@@ -226,55 +227,78 @@ export function WeekTemplateEditor({
                       window.allowance === "no_work"
                         ? 0
                         : parseClock(window.endTime) - parseClock(window.startTime);
+                    const editing = editingTime === window.id;
                     return (
-                      <div key={window.id} className="flex items-center gap-2.5 py-[7px]">
-                        <span className="flex w-[92px] shrink-0 items-center gap-1">
-                          <input
-                            type="time"
-                            aria-label="Window start"
-                            value={window.startTime}
-                            onChange={(event) =>
-                              editTime(window.id, "startTime", event.target.value)
-                            }
-                            className="t-meta-11 w-[42px] bg-transparent text-text outline-none"
-                          />
-                          <span className="t-meta-11 text-text-faded">–</span>
-                          <input
-                            type="time"
-                            aria-label="Window end"
-                            value={window.endTime}
-                            onChange={(event) =>
-                              editTime(window.id, "endTime", event.target.value)
-                            }
-                            className="t-meta-11 w-[42px] bg-transparent text-text outline-none"
-                          />
-                        </span>
+                      <div key={window.id}>
+                        <div className="flex items-center gap-2.5 py-[7px]">
+                          {/*
+                            The design specifies the range as 92px of 11px
+                            Roboto Mono, which is exactly wide enough to read
+                            "05:30 – 08:00" and far too narrow for a native
+                            time input. So the range stays type, and tapping
+                            it opens a real picker on the row below.
+                          */}
+                          <button
+                            type="button"
+                            onClick={() => setEditingTime(editing ? null : window.id)}
+                            aria-expanded={editing}
+                            aria-label={`Edit the ${window.startTime} to ${window.endTime} window`}
+                            className="press t-meta-11 w-[92px] shrink-0 text-left"
+                            style={{ color: editing ? "var(--gold-text)" : "var(--text)" }}
+                          >
+                            {window.startTime} – {window.endTime}
+                          </button>
 
-                        <button
-                          type="button"
-                          onClick={() => cycleAllowance(window.id)}
-                          className="press t-cat shrink-0 rounded-[2px] px-[9px] py-[5px]"
-                          style={{
-                            border: `1px solid ${ALLOWANCE_COLOR[window.allowance]}`,
-                            color: ALLOWANCE_COLOR[window.allowance],
-                            letterSpacing: "0.16em",
-                          }}
-                        >
-                          {ALLOWANCE_LABEL[window.allowance]}
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => cycleAllowance(window.id)}
+                            className="press t-cat shrink-0 rounded-[2px] px-[9px] py-[5px]"
+                            style={{
+                              border: `1px solid ${ALLOWANCE_COLOR[window.allowance]}`,
+                              color: ALLOWANCE_COLOR[window.allowance],
+                              letterSpacing: "0.16em",
+                            }}
+                          >
+                            {ALLOWANCE_LABEL[window.allowance]}
+                          </button>
 
-                        <span className="t-meta flex-1 text-right text-text-faded">
-                          {minutes === 0 ? "—" : formatDuration(minutes)}
-                        </span>
+                          <span className="t-meta flex-1 text-right text-text-faded">
+                            {minutes === 0 ? "—" : formatDuration(minutes)}
+                          </span>
 
-                        <button
-                          type="button"
-                          aria-label="Delete this window"
-                          onClick={() => removeWindow(window.id)}
-                          className="press flex h-11 w-6 items-center justify-center text-text-faded"
-                        >
-                          <Trash2 size={14} strokeWidth={1.5} />
-                        </button>
+                          <button
+                            type="button"
+                            aria-label="Delete this window"
+                            onClick={() => removeWindow(window.id)}
+                            className="press flex h-11 w-6 items-center justify-center text-text-faded"
+                          >
+                            <Trash2 size={14} strokeWidth={1.5} />
+                          </button>
+                        </div>
+
+                        {editing ? (
+                          <div className="mb-2 flex items-center gap-2 pb-1">
+                            <input
+                              type="time"
+                              aria-label="Window start"
+                              value={window.startTime}
+                              onChange={(event) =>
+                                editTime(window.id, "startTime", event.target.value)
+                              }
+                              className="t-meta-11 flex-1 rounded-[2px] border border-hairline bg-panel px-2 py-[7px] text-text outline-none"
+                            />
+                            <span className="t-meta-11 text-text-faded">–</span>
+                            <input
+                              type="time"
+                              aria-label="Window end"
+                              value={window.endTime}
+                              onChange={(event) =>
+                                editTime(window.id, "endTime", event.target.value)
+                              }
+                              className="t-meta-11 flex-1 rounded-[2px] border border-hairline bg-panel px-2 py-[7px] text-text outline-none"
+                            />
+                          </div>
+                        ) : null}
                       </div>
                     );
                   })}

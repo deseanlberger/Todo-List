@@ -12,7 +12,7 @@ import {
   DAY_START_MINUTES,
   type WeekDay,
   type WeekView,
-} from "@/lib/week-view";
+} from "@/lib/view-types";
 
 type Mode = "rail" | "grid";
 
@@ -46,7 +46,7 @@ export function WeekScreen({ view, clock }: { view: WeekView; clock: string }) {
         eyebrow={`WEEK OF ${formatEyebrowDate(view.weekStart, 0).split(" · ")[1]}`}
         title="THE WEEK"
         trailing={
-          <div className="text-right">
+          <Link href="/settings" className="press block text-right">
             <div className="t-meta text-text-secondary">
               {view.todayIndex !== null
                 ? capReadout(view.days[view.todayIndex]) + " TODAY"
@@ -55,7 +55,7 @@ export function WeekScreen({ view, clock }: { view: WeekView; clock: string }) {
             <div className="t-eyebrow mt-1 text-text-faded">
               CAP ACTIVE MON–{view.weekendUncapped ? "FRI" : "SUN"}
             </div>
-          </div>
+          </Link>
         }
       />
 
