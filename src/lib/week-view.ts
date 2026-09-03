@@ -8,7 +8,7 @@ import {
   minutesOfDay,
   parseClock,
 } from "@/lib/domain/time";
-import type { Task, TaskCategory } from "@/lib/domain/types";
+import type { Task } from "@/lib/domain/types";
 import { toWalls } from "@/lib/scheduler";
 import { eventIsAtGym } from "@/lib/scheduler/location";
 import type { WeekDay, WeekEntry, WeekView } from "@/lib/view-types";

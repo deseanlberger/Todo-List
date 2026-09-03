@@ -71,10 +71,7 @@ export function AllTasks({
     return open.filter((task) => task.title.toLowerCase().includes(needle));
   }, [open, query]);
 
-  const groups = useMemo(
-    () => buildGroups(visible, sort, now),
-    [visible, sort, now],
-  );
+  const groups = useMemo(() => buildGroups(visible, sort), [visible, sort]);
 
   const rate = (task: Task, value: number) => {
     startTransition(() => {
@@ -188,7 +185,7 @@ export function AllTasks({
 
 /* ------------------------------------------------------------------ sorts */
 
-function buildGroups(tasks: Task[], sort: SortMode, now: Date): Group[] {
+function buildGroups(tasks: Task[], sort: SortMode): Group[] {
   if (sort === "category") {
     return CATEGORY_ORDER.map((category) => {
       const inGroup = tasks

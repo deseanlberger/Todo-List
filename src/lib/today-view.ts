@@ -4,7 +4,6 @@ import { repository } from "@/lib/data";
 import { CATEGORIES } from "@/lib/domain/categories";
 import { isUrgent } from "@/lib/domain/priority";
 import { isoDate, minutesOfDay } from "@/lib/domain/time";
-import type { Task } from "@/lib/domain/types";
 import { currentWeekStart } from "@/lib/schedule-run";
 import { CLOSE_OUT_GRACE_MINUTES, type TodayView } from "@/lib/view-types";
 import { loadWeekView } from "@/lib/week-view";
