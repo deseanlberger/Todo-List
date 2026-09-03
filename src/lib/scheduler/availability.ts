@@ -195,19 +195,25 @@ function subtract(intervals: Interval[], cut: Interval): Interval[] {
   return out;
 }
 
+/** Everything the capacity readout needs; it does not care about ids. */
+export type CapacityWindow = Pick<
+  AvailabilityWindow,
+  "startTime" | "endTime" | "allowance"
+>;
+
 /**
  * Total non-`no_work` minutes in the recurring template. This is the
  * capacity readout on the Week Template screen — before reset gaps are
  * deducted, as §3 specifies.
  */
-export function templateCapacityMinutes(windows: AvailabilityWindow[]): number {
+export function templateCapacityMinutes(windows: CapacityWindow[]): number {
   return windows
     .filter((w) => w.allowance !== "no_work")
     .reduce((total, w) => total + (parseClock(w.endTime) - parseClock(w.startTime)), 0);
 }
 
 /** Capacity as a rough block count: minutes ÷ 30, before resets. */
-export function templateCapacityBlocks(windows: AvailabilityWindow[]): number {
+export function templateCapacityBlocks(windows: CapacityWindow[]): number {
   return Math.floor(templateCapacityMinutes(windows) / 30);
 }
 
