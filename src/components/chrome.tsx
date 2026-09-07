@@ -130,10 +130,7 @@ export function TabBar() {
   const pathname = usePathname();
 
   return (
-    <nav
-      className="bar-blur flex shrink-0 pt-1.5 pb-[22px]"
-      style={{ borderTop: "0.5px solid var(--separator)" }}
-    >
+    <nav className="bar-blur tabbar">
       {TABS.map(({ href, label, Icon, alsoMatches }) => {
         const owns = [href, ...(alsoMatches ?? [])];
         const active = owns.some(
@@ -144,13 +141,11 @@ export function TabBar() {
             key={href}
             href={href}
             aria-current={active ? "page" : undefined}
-            className="flex flex-1 flex-col items-center gap-[3px] pt-1"
+            className="tabbar-item pressable"
             style={{ color: active ? "var(--blue)" : "var(--gray)" }}
           >
-            <Icon size={25} strokeWidth={active ? 2.2 : 1.8} />
-            <span className="t-caption2" style={{ fontWeight: 500 }}>
-              {label}
-            </span>
+            <Icon size={25} strokeWidth={active ? 2.2 : 1.8} className="shrink-0" />
+            <span className="t-caption2 tabbar-label">{label}</span>
           </Link>
         );
       })}

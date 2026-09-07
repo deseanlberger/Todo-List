@@ -1,7 +1,5 @@
 import "server-only";
 import { google } from "googleapis";
-import { supabaseIsConfigured } from "@/lib/data/supabase";
-import { DEMO_CALENDAR } from "@/lib/data/seed";
 import { DEFAULT_TIME_ZONE, addDays, isoDate, weekOf } from "@/lib/domain/time";
 import { env, hasEnv } from "@/lib/env";
 import type { CalendarEvent } from "@/lib/domain/types";
@@ -128,32 +126,21 @@ class GoogleCalendarAdapter implements CalendarAdapter {
 
 /**
  * Stands in for Google when no credentials are configured. It accepts writes
- * without pretending they went anywhere.
+ * without pretending they went anywhere, and otherwise serves only what it
+ * was given.
  *
- * It also serves a fixed coaching week — but ONLY when storage is the demo
- * store too. With a real database behind it, the user's own recurring
- * commitments are the walls, and inventing extra ones on top of them would
- * put fake coaching sessions in a real week.
+ * It used to invent a coaching week so the scheduler had walls to fill
+ * around. Recurring commitments do that job now, from data the user owns
+ * and can edit, so inventing a second set on top would double-book the week.
  */
 class StubCalendarAdapter implements CalendarAdapter {
   readonly kind = "stub" as const;
 
   private written = new Map<string, CalendarWrite[]>();
 
-  async listWeek(weekStart: string, timeZone: string): Promise<CalendarEvent[]> {
-    const walls = (supabaseIsConfigured() ? [] : DEMO_CALENDAR).map((entry, index) => {
-      const date = addDays(weekStart, entry.weekday);
-      return {
-        id: `stub-${weekStart}-${index}`,
-        summary: entry.summary,
-        start: minutesToInstant(date, clockToMinutes(entry.start), timeZone).toISOString(),
-        end: minutesToInstant(date, clockToMinutes(entry.end), timeZone).toISOString(),
-        location: null,
-        isOurs: false,
-      };
-    });
-
-    const ours = (this.written.get(weekStart) ?? []).map((event, index) => ({
+  /** The stub has no timezone work to do: it stores instants as written. */
+  async listWeek(weekStart: string): Promise<CalendarEvent[]> {
+    return (this.written.get(weekStart) ?? []).map((event, index) => ({
       id: `stub-ours-${weekStart}-${index}`,
       summary: event.summary,
       start: event.start.toISOString(),
@@ -161,24 +148,18 @@ class StubCalendarAdapter implements CalendarAdapter {
       location: null,
       isOurs: true,
     }));
-
-    return [...walls, ...ours];
   }
 
-  /** The demo week repeats, so a range is just each week in it, stitched. */
   async listRange(
     fromDate: string,
     toDate: string,
     timeZone: string,
   ): Promise<CalendarEvent[]> {
     const events: CalendarEvent[] = [];
-    let cursor = weekOf(
-      minutesToInstant(fromDate, 12 * 60, timeZone),
-      timeZone,
-    );
+    let cursor = weekOf(minutesToInstant(fromDate, 12 * 60, timeZone), timeZone);
     // Guard against a runaway loop on a malformed range.
     for (let guard = 0; guard < 60 && cursor < toDate; guard++) {
-      for (const event of await this.listWeek(cursor, timeZone)) {
+      for (const event of await this.listWeek(cursor)) {
         const day = isoDate(new Date(event.start), timeZone);
         if (day >= fromDate && day < toDate) events.push(event);
       }
@@ -198,10 +179,6 @@ class StubCalendarAdapter implements CalendarAdapter {
   }
 }
 
-function clockToMinutes(clock: string): number {
-  const [hour, minute] = clock.split(":").map(Number);
-  return hour * 60 + minute;
-}
 
 /* ----------------------------------------------------------------- factory */
 

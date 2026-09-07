@@ -265,9 +265,10 @@ export function seedTasks(now: Date): Task[] {
  * to act on. Returns raw specs; the caller turns them into events.
  */
 /**
- * The demo's recurring commitments. These mirror what DEMO_CALENDAR used to
- * invent on its own, but as data the user owns and can edit — which is the
- * whole point of the screen.
+ * The demo's recurring commitments — a realistic coaching week, so the
+ * scheduler has walls to fill around with no setup at all. This replaces the
+ * fixed week the stub calendar used to invent: same shape, but data the user
+ * owns and can edit, which is the point of the screen.
  */
 export const SEED_COMMITMENTS: Omit<Commitment, "id" | "userId">[] = [
   { title: "Youth S&C", weekday: 0, startTime: "08:30", endTime: "11:00", location: "gym", sortOrder: 0 },
@@ -282,26 +283,6 @@ export const SEED_COMMITMENTS: Omit<Commitment, "id" | "userId">[] = [
   { title: "Youth S&C", weekday: 4, startTime: "08:30", endTime: "11:00", location: "gym", sortOrder: 0 },
   { title: "Afternoon sessions", weekday: 4, startTime: "15:00", endTime: "18:00", location: "gym", sortOrder: 1 },
   { title: "Saturday open gym", weekday: 5, startTime: "09:00", endTime: "11:00", location: "gym", sortOrder: 0 },
-];
-
-export const DEMO_CALENDAR: {
-  weekday: number;
-  start: string;
-  end: string;
-  summary: string;
-}[] = [
-  { weekday: 0, start: "08:30", end: "11:00", summary: "Youth S&C — coaching" },
-  { weekday: 0, start: "15:00", end: "19:00", summary: "Afternoon sessions — gym" },
-  { weekday: 1, start: "08:30", end: "11:30", summary: "Elite group — coaching" },
-  { weekday: 1, start: "15:00", end: "19:30", summary: "Afternoon sessions — gym" },
-  { weekday: 2, start: "06:00", end: "07:00", summary: "SMHS volleyball — team session" },
-  { weekday: 2, start: "14:30", end: "19:00", summary: "Afternoon sessions — gym" },
-  { weekday: 3, start: "09:00", end: "10:30", summary: "Mira Costa JUCO — team session" },
-  { weekday: 3, start: "14:00", end: "14:30", summary: "Sales meeting" },
-  { weekday: 3, start: "15:00", end: "19:00", summary: "Afternoon sessions — gym" },
-  { weekday: 4, start: "08:30", end: "11:00", summary: "Youth S&C — coaching" },
-  { weekday: 4, start: "15:00", end: "18:00", summary: "Afternoon sessions — gym" },
-  { weekday: 5, start: "09:00", end: "11:00", summary: "Saturday open gym" },
 ];
 
 /** True when the given instant falls inside a demo calendar wall. */

@@ -199,7 +199,7 @@ export function Segmented<T extends string>({
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className={`flex gap-[2px] rounded-[9px] p-[2px] ${className}`}
+      className={`segmented flex gap-[2px] rounded-[9px] p-[2px] ${className}`}
       style={{ background: "var(--fill)" }}
     >
       {options.map((option) => {
