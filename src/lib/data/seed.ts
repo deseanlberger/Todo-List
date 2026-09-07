@@ -1,6 +1,7 @@
 import { DEFAULT_TIME_ZONE, isoDate, minutesOfDay } from "@/lib/domain/time";
 import type {
   AvailabilityWindow,
+  Commitment,
   SchedulerSettings,
   Task,
   TaskCategory,
@@ -263,6 +264,26 @@ export function seedTasks(now: Date): Task[] {
  * scheduler has something to fill around and the location rule has something
  * to act on. Returns raw specs; the caller turns them into events.
  */
+/**
+ * The demo's recurring commitments. These mirror what DEMO_CALENDAR used to
+ * invent on its own, but as data the user owns and can edit — which is the
+ * whole point of the screen.
+ */
+export const SEED_COMMITMENTS: Omit<Commitment, "id" | "userId">[] = [
+  { title: "Youth S&C", weekday: 0, startTime: "08:30", endTime: "11:00", location: "gym", sortOrder: 0 },
+  { title: "Afternoon sessions", weekday: 0, startTime: "15:00", endTime: "19:00", location: "gym", sortOrder: 1 },
+  { title: "Elite group", weekday: 1, startTime: "08:30", endTime: "11:30", location: "gym", sortOrder: 0 },
+  { title: "Afternoon sessions", weekday: 1, startTime: "15:00", endTime: "19:30", location: "gym", sortOrder: 1 },
+  { title: "SMHS volleyball", weekday: 2, startTime: "06:00", endTime: "07:00", location: "gym", sortOrder: 0 },
+  { title: "Afternoon sessions", weekday: 2, startTime: "14:30", endTime: "19:00", location: "gym", sortOrder: 1 },
+  { title: "Mira Costa JUCO", weekday: 3, startTime: "09:00", endTime: "10:30", location: "gym", sortOrder: 0 },
+  { title: "Sales meeting", weekday: 3, startTime: "14:00", endTime: "14:30", location: "home", sortOrder: 1 },
+  { title: "Afternoon sessions", weekday: 3, startTime: "15:00", endTime: "19:00", location: "gym", sortOrder: 2 },
+  { title: "Youth S&C", weekday: 4, startTime: "08:30", endTime: "11:00", location: "gym", sortOrder: 0 },
+  { title: "Afternoon sessions", weekday: 4, startTime: "15:00", endTime: "18:00", location: "gym", sortOrder: 1 },
+  { title: "Saturday open gym", weekday: 5, startTime: "09:00", endTime: "11:00", location: "gym", sortOrder: 0 },
+];
+
 export const DEMO_CALENDAR: {
   weekday: number;
   start: string;

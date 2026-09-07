@@ -10,7 +10,11 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const repo = repository();
-  const [settings, windows] = await Promise.all([repo.getSettings(), repo.listWindows()]);
+  const [settings, windows, commitments] = await Promise.all([
+    repo.getSettings(),
+    repo.listWindows(),
+    repo.listCommitments(),
+  ]);
 
   // The summary on the right of the row, so the week's shape is visible
   // without opening the editor.
@@ -20,6 +24,11 @@ export default async function SettingsPage() {
   const openDays = new Set(
     windows.filter((w) => w.allowance !== "no_work").map((w) => w.weekday),
   ).size;
+
+  const committedMinutes = commitments.reduce(
+    (total, c) => total + (parseClock(c.endTime) - parseClock(c.startTime)),
+    0,
+  );
 
   const facts: [string, string][] = [
     ["Storage", repo.kind === "supabase" ? "Supabase" : "Demo, in memory"],
@@ -31,13 +40,21 @@ export default async function SettingsPage() {
   return (
     <SettingsChrome>
       <Content className="pt-4">
-        <Group footer="Time blocks are the only place the scheduler may put work. Set them once, per day of the week.">
+        <Group footer="Time blocks say when you are free. Commitments say when you are not. The scheduler works with what is left.">
           <Row href="/settings/week-template" chevron>
             <span className="t-body flex-1">Time blocks</span>
             <RowValue>
               {openMinutes === 0
                 ? "None set"
                 : `${formatHours(openMinutes)} · ${openDays} ${openDays === 1 ? "day" : "days"}`}
+            </RowValue>
+          </Row>
+          <Row href="/settings/commitments" chevron>
+            <span className="t-body flex-1">Weekly commitments</span>
+            <RowValue>
+              {commitments.length === 0
+                ? "None set"
+                : `${formatHours(committedMinutes)} · ${commitments.length}`}
             </RowValue>
           </Row>
         </Group>

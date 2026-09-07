@@ -1,7 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { repository, type NewWindow, type TaskPatch } from "@/lib/data";
+import {
+  repository,
+  type NewCommitment,
+  type NewWindow,
+  type TaskPatch,
+} from "@/lib/data";
 import { claudeIsConfigured, parseCapture } from "@/lib/capture/parse";
 import { categoryMeta } from "@/lib/domain/categories";
 import type { SortMode, Task, TaskCategory, TaskLocation } from "@/lib/domain/types";
@@ -261,6 +266,15 @@ export async function saveWeekTemplate(input: {
   });
   // §3: template edits apply on the next run. Placed blocks are not touched.
   refresh("/settings/week-template");
+}
+
+/* ------------------------------------------------------------ commitments */
+
+export async function saveCommitments(commitments: NewCommitment[]) {
+  await repository().replaceCommitments(commitments);
+  // Commitments are walls, so the month grid changes the moment they do.
+  // Placed blocks are left alone; they move on the next Schedule my week.
+  refresh("/settings/commitments", "/month");
 }
 
 export type { Task };

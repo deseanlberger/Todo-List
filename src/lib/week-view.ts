@@ -1,5 +1,5 @@
 import "server-only";
-import { CALENDAR_TIME_ZONE, calendar } from "@/lib/calendar";
+import { CALENDAR_TIME_ZONE } from "@/lib/calendar";
 import { repository } from "@/lib/data";
 import { CATEGORIES } from "@/lib/domain/categories";
 import {
@@ -12,6 +12,7 @@ import type { Task } from "@/lib/domain/types";
 import { toWalls } from "@/lib/scheduler";
 import { eventIsAtGym } from "@/lib/scheduler/location";
 import type { WeekDay, WeekEntry, WeekView } from "@/lib/view-types";
+import { wallsForWeek } from "@/lib/walls";
 
 export type { WeekDay, WeekEntry, WeekView };
 export {
@@ -34,7 +35,7 @@ export async function loadWeekView(
     repo.listWindows(),
   ]);
 
-  const events = await calendar().listWeek(weekStart, CALENDAR_TIME_ZONE);
+  const events = await wallsForWeek(weekStart);
   const walls = toWalls(
     events.filter((event) => !event.isOurs),
     CALENDAR_TIME_ZONE,

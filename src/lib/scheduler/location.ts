@@ -30,6 +30,8 @@ const GYM_KEYWORDS = [
 ];
 
 export function eventIsAtGym(event: CalendarEvent): boolean {
+  // A commitment the user tagged himself beats any guess we could make.
+  if (event.atGym !== undefined) return event.atGym;
   const haystack = `${event.summary} ${event.location ?? ""}`.toLowerCase();
   return GYM_KEYWORDS.some((keyword) => haystack.includes(keyword));
 }

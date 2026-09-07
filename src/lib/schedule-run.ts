@@ -10,6 +10,7 @@ import {
   type Layout,
   type ScheduleDiff,
 } from "@/lib/scheduler";
+import { wallsForWeek } from "@/lib/walls";
 
 export type PendingBlock = Omit<ScheduledBlock, "id" | "userId" | "createdAt">;
 
@@ -61,7 +62,7 @@ export async function computeWeek(
   const overrides = await repo.listOverrides(weekStart, addDays(weekStart, 6));
 
   // §9.1: the calendar is read first, always.
-  const events = await calendar().listWeek(weekStart, CALENDAR_TIME_ZONE);
+  const events = await wallsForWeek(weekStart);
 
   const { layout, diff, slots } = scheduleWeek({
     weekStart,

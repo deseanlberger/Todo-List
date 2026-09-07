@@ -1,5 +1,6 @@
 import "server-only";
 import { google } from "googleapis";
+import { supabaseIsConfigured } from "@/lib/data/supabase";
 import { DEMO_CALENDAR } from "@/lib/data/seed";
 import { DEFAULT_TIME_ZONE, addDays, isoDate, weekOf } from "@/lib/domain/time";
 import { env, hasEnv } from "@/lib/env";
@@ -126,9 +127,13 @@ class GoogleCalendarAdapter implements CalendarAdapter {
 /* -------------------------------------------------------------------- stub */
 
 /**
- * Stands in for Google when no credentials are configured. It serves a fixed
- * but realistic coaching week so the scheduler has walls to fill around, and
- * it accepts writes without pretending they went anywhere.
+ * Stands in for Google when no credentials are configured. It accepts writes
+ * without pretending they went anywhere.
+ *
+ * It also serves a fixed coaching week — but ONLY when storage is the demo
+ * store too. With a real database behind it, the user's own recurring
+ * commitments are the walls, and inventing extra ones on top of them would
+ * put fake coaching sessions in a real week.
  */
 class StubCalendarAdapter implements CalendarAdapter {
   readonly kind = "stub" as const;
@@ -136,7 +141,7 @@ class StubCalendarAdapter implements CalendarAdapter {
   private written = new Map<string, CalendarWrite[]>();
 
   async listWeek(weekStart: string, timeZone: string): Promise<CalendarEvent[]> {
-    const walls = DEMO_CALENDAR.map((entry, index) => {
+    const walls = (supabaseIsConfigured() ? [] : DEMO_CALENDAR).map((entry, index) => {
       const date = addDays(weekStart, entry.weekday);
       return {
         id: `stub-${weekStart}-${index}`,

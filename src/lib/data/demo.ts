@@ -2,24 +2,33 @@ import { randomUUID } from "node:crypto";
 import type {
   AvailabilityOverride,
   AvailabilityWindow,
+  Commitment,
   EstimationSample,
   SchedulerSettings,
   ScheduledBlock,
   Task,
 } from "@/lib/domain/types";
 import type {
+  NewCommitment,
   NewTask,
   NewWindow,
   PendingSchedule,
   Repository,
   TaskPatch,
 } from "./repository";
-import { DEMO_USER_ID, SEED_SETTINGS, SEED_WINDOWS, seedTasks } from "./seed";
+import {
+  DEMO_USER_ID,
+  SEED_COMMITMENTS,
+  SEED_SETTINGS,
+  SEED_WINDOWS,
+  seedTasks,
+} from "./seed";
 
 interface DemoState {
   tasks: Task[];
   windows: AvailabilityWindow[];
   overrides: AvailabilityOverride[];
+  commitments: Commitment[];
   settings: SchedulerSettings;
   blocks: ScheduledBlock[];
   pending: (PendingSchedule & { resolvedAt: string | null })[];
@@ -44,6 +53,11 @@ function state(): DemoState {
         userId: DEMO_USER_ID,
       })),
       overrides: [],
+      commitments: SEED_COMMITMENTS.map((c) => ({
+        ...c,
+        id: randomUUID(),
+        userId: DEMO_USER_ID,
+      })),
       settings: { ...SEED_SETTINGS },
       blocks: [],
       pending: [],
@@ -120,6 +134,23 @@ export class DemoRepository implements Repository {
     return clone(
       state().overrides.filter((o) => o.onDate >= fromDate && o.onDate <= toDate),
     );
+  }
+
+  async listCommitments(): Promise<Commitment[]> {
+    return clone(
+      [...state().commitments].sort(
+        (a, b) => a.weekday - b.weekday || a.startTime.localeCompare(b.startTime),
+      ),
+    );
+  }
+
+  async replaceCommitments(commitments: NewCommitment[]): Promise<Commitment[]> {
+    state().commitments = commitments.map((c) => ({
+      ...c,
+      id: c.id ?? randomUUID(),
+      userId: DEMO_USER_ID,
+    }));
+    return this.listCommitments();
   }
 
   async getSettings(): Promise<SchedulerSettings> {

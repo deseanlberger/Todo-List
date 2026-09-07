@@ -1,6 +1,7 @@
 import type {
   AvailabilityOverride,
   AvailabilityWindow,
+  Commitment,
   EstimationSample,
   SchedulerSettings,
   ScheduledBlock,
@@ -151,5 +152,18 @@ export function toEstimation(row: any): EstimationSample {
     estimatedBlocks: row.estimated_blocks,
     actualBlocks: row.actual_blocks,
     completedAt: row.completed_at,
+  };
+}
+
+export function toCommitment(row: any): Commitment {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    title: row.title,
+    weekday: row.weekday,
+    startTime: String(row.start_time).slice(0, 5),
+    endTime: String(row.end_time).slice(0, 5),
+    location: row.location,
+    sortOrder: row.sort_order,
   };
 }
