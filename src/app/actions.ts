@@ -229,6 +229,25 @@ export async function closeOutBlock(input: {
   refresh();
 }
 
+/**
+ * Tick a task off, or put it back.
+ *
+ * Close-out (§13) is how a *scheduled block* ends, and it records actual
+ * versus estimated blocks for the estimator. This is the other case: a task
+ * you did without a block against it, or one that turned out not to need
+ * doing. There is nothing honest to feed the estimator from a tick — no
+ * block ran — so it does not write estimation history. Un-ticking returns
+ * the task to the backlog, which is where an unscheduled task belongs; the
+ * next Schedule my week places it again.
+ */
+export async function setTaskDone(taskId: string, done: boolean) {
+  await repository().updateTask(taskId, {
+    status: done ? "done" : "backlog",
+    completedAt: done ? new Date().toISOString() : null,
+  });
+  refresh();
+}
+
 /* ------------------------------------------------------------- scheduling */
 
 export async function scheduleMyWeek(weekStart?: string) {

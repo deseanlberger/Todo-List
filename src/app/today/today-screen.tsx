@@ -3,8 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AlertCircle } from "lucide-react";
-import { scheduleMyWeek } from "@/app/actions";
+import { AlertCircle, Check } from "lucide-react";
+import { scheduleMyWeek, setTaskDone } from "@/app/actions";
 import { ActionBar, Content, Header, SettingsGear, TabBar } from "@/components/chrome";
 import { QuickAddButton } from "@/components/quick-add";
 import { Button, Dot, EmptyState, Group, categoryColor } from "@/components/ui";
@@ -30,10 +30,22 @@ export function TodayScreen({
 }) {
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [ticked, setTicked] = useState<Record<string, boolean>>({});
   const [pending, startTransition] = useTransition();
 
   const active = view.activeEntry;
   const rows = buildRows(view, resetMinutes);
+
+  // The ticked row is held locally so it strikes through on tap; the server
+  // render that follows is what makes it stick.
+  const toggleDone = (entry: WeekEntry, done: boolean) => {
+    if (!entry.taskId) return;
+    setTicked((current) => ({ ...current, [entry.taskId!]: done }));
+    startTransition(async () => {
+      await setTaskDone(entry.taskId!, done);
+      router.refresh();
+    });
+  };
 
   const placeIt = () => {
     startTransition(async () => {
@@ -96,8 +108,13 @@ export function TodayScreen({
               return (
                 <TimelineRow
                   key={`${row.entry.title}-${index}`}
-                  entry={row.entry}
+                  entry={
+                    row.entry.taskId && row.entry.taskId in ticked
+                      ? { ...row.entry, done: ticked[row.entry.taskId] }
+                      : row.entry
+                  }
                   isActive={row.isActive}
+                  onToggleDone={(done) => toggleDone(row.entry, done)}
                 />
               );
             })}
@@ -208,7 +225,15 @@ function ResetRow({ minutes }: { minutes: number }) {
   );
 }
 
-function TimelineRow({ entry, isActive }: { entry: WeekEntry; isActive: boolean }) {
+function TimelineRow({
+  entry,
+  isActive,
+  onToggleDone,
+}: {
+  entry: WeekEntry;
+  isActive: boolean;
+  onToggleDone?: (done: boolean) => void;
+}) {
   const locked = entry.locked;
 
   const body = (
@@ -220,7 +245,35 @@ function TimelineRow({ entry, isActive }: { entry: WeekEntry; isActive: boolean 
         {formatClock12(entry.start)}
       </span>
 
-      {entry.category ? (
+      {entry.category && entry.taskId && onToggleDone ? (
+        // Same circle as the Tasks list, so ticking work off works the same
+        // wherever you are looking at it.
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={entry.done}
+          aria-label={
+            entry.done ? `Mark ${entry.title} not done` : `Mark ${entry.title} done`
+          }
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onToggleDone(!entry.done);
+          }}
+          className="-my-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+        >
+          <span
+            className="flex h-[20px] w-[20px] items-center justify-center rounded-full"
+            style={{
+              border: `1.8px solid ${categoryColor(entry.category)}`,
+              background: entry.done ? categoryColor(entry.category) : "transparent",
+              transition: "background-color 150ms ease-out",
+            }}
+          >
+            {entry.done ? <Check size={13} strokeWidth={3.5} color="#fff" /> : null}
+          </span>
+        </button>
+      ) : entry.category ? (
         <Dot color={categoryColor(entry.category)} />
       ) : (
         <span

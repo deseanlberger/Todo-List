@@ -1,12 +1,12 @@
 "use client";
 
 import { useMemo, useOptimistic, useState, useTransition } from "react";
-import { Plus, Search, X } from "lucide-react";
-import { saveSortMode, setImportance } from "@/app/actions";
+import { ChevronRight, Plus, Search, X } from "lucide-react";
+import { saveSortMode, setImportance, setTaskDone } from "@/app/actions";
 import { Content, Header, IconButton, SettingsGear, TabBar } from "@/components/chrome";
 import { QuickAddButton } from "@/components/quick-add";
 import { TaskRow } from "@/components/task-row";
-import { Dot, EmptyState, Group, Segmented, categoryColor } from "@/components/ui";
+import { Dot, EmptyState, Group, Row, Segmented, categoryColor } from "@/components/ui";
 import { CATEGORIES, CATEGORY_ORDER } from "@/lib/domain/categories";
 import { isUrgent } from "@/lib/domain/priority";
 import type { SortMode, Task, TaskCategory } from "@/lib/domain/types";
@@ -44,19 +44,36 @@ export function AllTasks({
   const [sort, setSort] = useState<SortMode>(initialSort);
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
+  const [showDone, setShowDone] = useState(false);
   const [, startTransition] = useTransition();
 
-  // Re-rating must feel instant; the write follows behind.
-  const [optimistic, applyRating] = useOptimistic(
+  // Both edits must feel instant; the write follows behind. One reducer for
+  // the two of them, so a tick and a re-rate can not stomp on each other.
+  type Edit =
+    | { kind: "rate"; id: string; value: number }
+    | { kind: "done"; id: string; done: boolean };
+
+  const [optimistic, applyEdit] = useOptimistic(
     tasks,
-    (current: Task[], change: { id: string; value: number }) =>
-      current.map((task) =>
-        task.id === change.id ? { ...task, financialImpact: change.value } : task,
-      ),
+    (current: Task[], edit: Edit) =>
+      current.map((task) => {
+        if (task.id !== edit.id) return task;
+        return edit.kind === "rate"
+          ? { ...task, financialImpact: edit.value }
+          : { ...task, status: edit.done ? ("done" as const) : ("backlog" as const) };
+      }),
   );
 
   const now = useMemo(() => new Date(nowIso), [nowIso]);
   const open = useMemo(() => optimistic.filter((t) => t.status !== "done"), [optimistic]);
+
+  const done = useMemo(
+    () =>
+      optimistic
+        .filter((task) => task.status === "done")
+        .sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? "")),
+    [optimistic],
+  );
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -68,8 +85,15 @@ export function AllTasks({
 
   const rate = (task: Task, value: number) => {
     startTransition(() => {
-      applyRating({ id: task.id, value });
+      applyEdit({ kind: "rate", id: task.id, value });
       void setImportance(task.id, value);
+    });
+  };
+
+  const toggleDone = (task: Task, done: boolean) => {
+    startTransition(() => {
+      applyEdit({ kind: "done", id: task.id, done });
+      void setTaskDone(task.id, done);
     });
   };
 
@@ -161,11 +185,58 @@ export function AllTasks({
                 timeZone={timeZone}
                 urgent={isUrgent(task, now)}
                 onRate={(value) => rate(task, value)}
+                onToggleDone={(done) => toggleDone(task, done)}
                 showCategory={sort !== "category"}
               />
             ))}
           </Group>
         ))}
+
+        {/* Ticked-off work, newest first, so a mistake is one tap to undo
+            instead of gone forever. Collapsed by default: it is history. */}
+        {done.length > 0 ? (
+          <Group
+            header={
+              <button
+                type="button"
+                onClick={() => setShowDone((value) => !value)}
+                className="pressable-solid flex items-center gap-1.5"
+                aria-expanded={showDone}
+              >
+                <span>Completed</span>
+                <span style={{ color: "var(--label-3)" }}>{done.length}</span>
+                <ChevronRight
+                  size={14}
+                  strokeWidth={2.5}
+                  style={{
+                    color: "var(--label-3)",
+                    transform: showDone ? "rotate(90deg)" : undefined,
+                    transition: "transform 150ms ease-out",
+                  }}
+                />
+              </button>
+            }
+          >
+            {showDone ? (
+              done.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  timeZone={timeZone}
+                  urgent={false}
+                  onRate={(value) => rate(task, value)}
+                  onToggleDone={(value) => toggleDone(task, value)}
+                />
+              ))
+            ) : (
+              <Row onClick={() => setShowDone(true)}>
+                <span className="t-body flex-1" style={{ color: "var(--blue)" }}>
+                  Show completed
+                </span>
+              </Row>
+            )}
+          </Group>
+        ) : null}
       </Content>
 
       <TabBar />

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CATEGORIES } from "@/lib/domain/categories";
 import { formatDueShort } from "@/lib/domain/time";
 import type { Task } from "@/lib/domain/types";
+import { Check } from "lucide-react";
 import { Dot, Stars, categoryColor } from "./ui";
 
 /** `2 blocks`, or `Handoff` for a delegate item. */
@@ -25,12 +26,14 @@ export function TaskRow({
   timeZone,
   urgent,
   onRate,
+  onToggleDone,
   showCategory = true,
 }: {
   task: Task;
   timeZone: string;
   urgent: boolean;
   onRate: (value: number) => void;
+  onToggleDone: (done: boolean) => void;
   /** Hidden when the group header already says it. */
   showCategory?: boolean;
 }) {
@@ -54,9 +57,31 @@ export function TaskRow({
       className="ios-row ios-row-inset pressable"
       style={{ alignItems: "flex-start" }}
     >
-      <span className="shrink-0 pt-[6px]">
-        <Dot color={categoryColor(task.category)} />
-      </span>
+      {/* The circle is the category colour, so ticking a task off does not
+          cost the one signal that told you what kind of work it was. */}
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={done}
+        aria-label={done ? `Mark ${task.title} not done` : `Mark ${task.title} done`}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onToggleDone(!done);
+        }}
+        className="-my-1 -ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+      >
+        <span
+          className="flex h-[22px] w-[22px] items-center justify-center rounded-full"
+          style={{
+            border: `1.8px solid ${categoryColor(task.category)}`,
+            background: done ? categoryColor(task.category) : "transparent",
+            transition: "background-color 150ms ease-out",
+          }}
+        >
+          {done ? <Check size={14} strokeWidth={3.5} color="#fff" /> : null}
+        </span>
+      </button>
 
       <span className="min-w-0 flex-1">
         {/* Wrap rather than truncate: a clipped title is unreadable, and the
