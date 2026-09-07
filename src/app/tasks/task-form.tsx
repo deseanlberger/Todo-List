@@ -18,6 +18,13 @@ import {
   categoryColor,
 } from "@/components/ui";
 import { CATEGORIES, CATEGORY_ORDER, categoryMeta } from "@/lib/domain/categories";
+import {
+  describeRule,
+  formatRule,
+  parseRule,
+  type Frequency,
+} from "@/lib/domain/recurrence";
+import { WEEKDAY_SHORT } from "@/lib/domain/time";
 import { urgencyLabel } from "@/lib/domain/priority";
 import type { EstimationSample, Task, TaskCategory, TaskLocation } from "@/lib/domain/types";
 
@@ -46,6 +53,9 @@ export function TaskForm({
   const [impact, setImpact] = useState(task?.financialImpact ?? 3);
   const [due, setDue] = useState(task?.dueDate ? toLocalInput(task.dueDate) : "");
   const [recurring, setRecurring] = useState(task?.isRecurring ?? false);
+  const stored = parseRule(task?.recurrenceRule ?? null);
+  const [frequency, setFrequency] = useState<Frequency>(stored?.frequency ?? "weekly");
+  const [weekdays, setWeekdays] = useState<number[]>(stored?.weekdays ?? []);
   const [assignee, setAssignee] = useState(task?.assignee ?? "");
 
   const meta = categoryMeta(category);
@@ -62,6 +72,18 @@ export function TaskForm({
     if (!title.trim()) return;
     startTransition(async () => {
       const dueIso = due ? new Date(due).toISOString() : null;
+      // The rule only means anything when the task repeats, and the month
+      // and year cases read their date off the due date rather than asking
+      // for it twice.
+      const rule = recurring
+        ? formatRule({
+            frequency,
+            weekdays: frequency === "weekly" ? weekdays : [],
+            monthDay: due ? Number(due.slice(8, 10)) : undefined,
+            month: due ? Number(due.slice(5, 7)) : undefined,
+          })
+        : null;
+
       const payload = {
         title: title.trim(),
         category,
@@ -73,9 +95,18 @@ export function TaskForm({
       };
 
       if (task) {
-        await patchTask(task.id, { ...payload, isRecurring: recurring });
+        await patchTask(task.id, {
+          ...payload,
+          isRecurring: recurring,
+          recurrenceRule: rule,
+        });
       } else {
-        await createTask({ ...payload, notes: null });
+        await createTask({
+          ...payload,
+          notes: null,
+          isRecurring: recurring,
+          recurrenceRule: rule,
+        });
       }
       router.push("/tasks");
       router.refresh();
@@ -233,9 +264,70 @@ export function TaskForm({
           </Row>
 
           <Row>
-            <span className="t-body flex-1">Recurring</span>
-            <Switch checked={recurring} onChange={setRecurring} ariaLabel="Recurring" />
+            <span className="t-body flex-1">Repeats</span>
+            <Switch checked={recurring} onChange={setRecurring} ariaLabel="Repeats" />
           </Row>
+
+          {recurring ? (
+            <>
+              <Row inset>
+                <Segmented
+                  ariaLabel="How often"
+                  className="flex-1"
+                  value={frequency}
+                  options={[
+                    { value: "daily" as Frequency, label: "Day" },
+                    { value: "weekly" as Frequency, label: "Week" },
+                    { value: "monthly" as Frequency, label: "Month" },
+                    { value: "yearly" as Frequency, label: "Year" },
+                  ]}
+                  onChange={setFrequency}
+                />
+              </Row>
+
+              {frequency === "weekly" ? (
+                <Row inset>
+                  <div className="flex flex-1 gap-1">
+                    {WEEKDAY_SHORT.map((label, day) => {
+                      const on = weekdays.includes(day);
+                      return (
+                        <button
+                          key={label}
+                          type="button"
+                          role="checkbox"
+                          aria-checked={on}
+                          aria-label={label}
+                          onClick={() =>
+                            setWeekdays((current) =>
+                              on
+                                ? current.filter((d) => d !== day)
+                                : [...current, day].sort((a, b) => a - b),
+                            )
+                          }
+                          className="t-footnote flex h-9 flex-1 items-center justify-center rounded-full"
+                          style={{
+                            background: on ? "var(--blue)" : "var(--fill)",
+                            color: on ? "#fff" : "var(--label-2)",
+                            fontWeight: on ? 600 : 400,
+                          }}
+                        >
+                          {label[0]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Row>
+              ) : null}
+
+              <Row inset>
+                <span className="t-footnote flex-1" style={{ color: "var(--label-2)" }}>
+                  {due
+                    ? summariseRepeat(frequency, weekdays, due)
+                    : "Set a due date. That is the first one, and the repeat counts from it."}
+                </span>
+              </Row>
+            </>
+          ) : null}
         </Group>
 
         {task ? (
@@ -295,4 +387,24 @@ function toLocalInput(iso: string): string {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
     .toISOString()
     .slice(0, 16);
+}
+
+/** "Every week on Mon, Wed. Next: Wed Sep 9." under the picker. */
+function summariseRepeat(
+  frequency: Frequency,
+  weekdays: number[],
+  due: string,
+): string {
+  const rule = formatRule({
+    frequency,
+    weekdays: frequency === "weekly" ? weekdays : [],
+    monthDay: Number(due.slice(8, 10)),
+    month: Number(due.slice(5, 7)),
+  });
+
+  const words = describeRule(rule);
+  if (frequency === "weekly" && weekdays.length === 0) {
+    return "Every week on the same weekday as the due date.";
+  }
+  return `${words}. The due date above is the first one.`;
 }

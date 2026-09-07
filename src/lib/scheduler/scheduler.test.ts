@@ -371,6 +371,80 @@ describe("§6 location", () => {
   });
 });
 
+describe("§14 recurring tasks wait for their week", () => {
+  it("places a recurring task due inside the week", () => {
+    const { layout } = run({
+      windows: [makeWindow(0, "09:00", "12:00")],
+      tasks: [
+        makeTask({
+          title: "Rent",
+          isRecurring: true,
+          recurrenceRule: "FREQ=MONTHLY;BYMONTHDAY=8",
+          dueDate: "2026-09-08T17:00:00Z",
+        }),
+      ],
+    });
+
+    expect(layout.placements.map((p) => p.task.title)).toEqual(["Rent"]);
+  });
+
+  it("leaves next month's copy alone until its week comes round", () => {
+    // Without this, October's rent claims the best slot of every week
+    // between now and October, every single run.
+    const { layout } = run({
+      windows: [makeWindow(0, "09:00", "12:00")],
+      tasks: [
+        makeTask({
+          title: "Rent",
+          isRecurring: true,
+          recurrenceRule: "FREQ=MONTHLY;BYMONTHDAY=8",
+          dueDate: "2026-10-08T17:00:00Z",
+        }),
+      ],
+    });
+
+    expect(layout.placements).toHaveLength(0);
+    // Nor is it overflow: it is not late, it is simply not due yet.
+    expect(layout.didntFit).toHaveLength(0);
+  });
+
+  it("still places an overdue recurring task", () => {
+    const { layout } = run({
+      windows: [makeWindow(0, "09:00", "12:00")],
+      tasks: [
+        makeTask({
+          title: "Rent",
+          isRecurring: true,
+          recurrenceRule: "FREQ=MONTHLY;BYMONTHDAY=1",
+          dueDate: "2026-08-01T17:00:00Z",
+        }),
+      ],
+    });
+
+    expect(layout.placements.map((p) => p.task.title)).toEqual(["Rent"]);
+  });
+
+  it("places a recurring task that has no due date at all", () => {
+    const { layout } = run({
+      windows: [makeWindow(0, "09:00", "12:00")],
+      tasks: [makeTask({ title: "Weekly review", isRecurring: true, dueDate: null })],
+    });
+
+    expect(layout.placements.map((p) => p.task.title)).toEqual(["Weekly review"]);
+  });
+
+  it("does not hold back a one-off task due later", () => {
+    // The rule is about recurring tasks only. Getting ahead on ordinary
+    // work is the point of the scheduler.
+    const { layout } = run({
+      windows: [makeWindow(0, "09:00", "12:00")],
+      tasks: [makeTask({ title: "Sage Creek invoice", dueDate: "2026-10-08T17:00:00Z" })],
+    });
+
+    expect(layout.placements.map((p) => p.task.title)).toEqual(["Sage Creek invoice"]);
+  });
+});
+
 describe("§7 priority", () => {
   it("places recurring tasks before anything else, whatever their impact", () => {
     const { layout } = run({
