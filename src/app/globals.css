@@ -1,0 +1,352 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ tokens
+ * Values are taken verbatim from the design handoff. Dark is the default
+ * view; the light view redefines the same names so every component can be
+ * written once against the semantic token.
+ */
+
+:root {
+  --bg: #000000;
+  --panel: #0a0a0a;
+  --panel-inert: #050505;
+  --hairline: #1c1c1c;
+  --hairline-2: #232323;
+  --text: #ffffff;
+  --text-secondary: #a0a0a0;
+  --text-faded: #5a5a5a;
+  --gold: #ffd700;
+  --card-navy: #0d1a2b;
+  --antique-gold: #d3af37;
+
+  /* Gold used as *text*. The light view must never do this, so it is its
+   * own token rather than a reuse of --gold. */
+  --gold-text: #ffd700;
+  --gold-press: #d4af00;
+
+  --star-fill: #ffd700;
+  --star-empty: #2a2a2a;
+  --grid-line: #111111;
+  --tab-active: #ffd700;
+  --tab-inactive: #5a5a5a;
+  --today-wash: #060606;
+
+  --urgent: #c2453f;
+  --positive: #4e8c7d;
+
+  /* Category rails are identical in both views; labels are not. */
+  --cat-deep-focus: #ffd700;
+  --cat-high-priority-admin: #c2453f;
+  --cat-low-priority-admin: #6e7787;
+  --cat-personal: #4e8c7d;
+  --cat-delegate: #d3af37;
+
+  --cat-deep-focus-label: #ffd700;
+  --cat-high-priority-admin-label: #c2453f;
+  --cat-low-priority-admin-label: #6e7787;
+  --cat-personal-label: #4e8c7d;
+  --cat-delegate-label: #d3af37;
+
+  --ease-default: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-snap: cubic-bezier(0.9, 0, 0.1, 1);
+}
+
+[data-theme="light"] {
+  --bg: #f4f4f2;
+  --panel: #ffffff;
+  --panel-inert: #ededea;
+  --hairline: #d8d8d2;
+  --hairline-2: #d8d8d2;
+  --text: #0a0a0a;
+  --text-secondary: #5a5a5a;
+  --text-faded: #a0a0a0;
+  --gold: #ffd700;
+  --card-navy: #0d1a2b;
+  --antique-gold: #d3af37;
+
+  --gold-text: #7a6100;
+  --gold-press: #d4af00;
+
+  --star-fill: #d3af37;
+  --star-empty: #d8d8d2;
+  --grid-line: #d8d8d2;
+  --tab-active: #0a0a0a;
+  --tab-inactive: #a0a0a0;
+  --today-wash: #eeeeea;
+
+  --urgent: #a3352f;
+  --positive: #2f6a5c;
+
+  --cat-deep-focus-label: #7a6100;
+  --cat-high-priority-admin-label: #a3352f;
+  --cat-low-priority-admin-label: #4a5262;
+  --cat-personal-label: #2f6a5c;
+  --cat-delegate-label: #7a5f12;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-panel-inert: var(--panel-inert);
+  --color-hairline: var(--hairline);
+  --color-hairline-2: var(--hairline-2);
+  --color-text: var(--text);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-faded: var(--text-faded);
+  --color-gold: var(--gold);
+  --color-gold-text: var(--gold-text);
+  --color-navy: var(--card-navy);
+  --color-antique: var(--antique-gold);
+  --color-urgent: var(--urgent);
+  --color-positive: var(--positive);
+  --color-grid-line: var(--grid-line);
+
+  --font-display: var(--font-bebas), "Bebas Neue", sans-serif;
+  --font-ui: var(--font-rajdhani), "Rajdhani", system-ui, sans-serif;
+  --font-mono: var(--font-roboto-mono), "Roboto Mono", ui-monospace, monospace;
+
+  --radius-card: 2px;
+  --radius-chip: 2px;
+}
+
+/* ------------------------------------------------------------------- base */
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  overscroll-behavior-y: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+/* Max radius anywhere is 4px, so nothing here needs a rounder default. */
+
+/* ------------------------------------------------------- type components
+ * Each of these is one row of the handoff's typography table. Defining them
+ * once keeps every screen honest about letter-spacing and casing.
+ */
+
+@layer components {
+  .t-screen-title {
+    font-family: var(--font-display);
+    font-size: 34px;
+    line-height: 0.9;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    font-weight: 400;
+  }
+
+  .t-screen-title-lg {
+    font-family: var(--font-display);
+    font-size: 40px;
+    line-height: 0.9;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    font-weight: 400;
+  }
+
+  .t-sheet-title {
+    font-family: var(--font-display);
+    font-size: 26px;
+    line-height: 0.98;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    font-weight: 400;
+  }
+
+  .t-numeral {
+    font-family: var(--font-display);
+    font-size: 22px;
+    line-height: 1;
+    font-weight: 400;
+  }
+
+  .t-day {
+    font-family: var(--font-display);
+    font-size: 17px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 400;
+  }
+
+  .t-eyebrow {
+    font-family: var(--font-ui);
+    font-weight: 700;
+    font-size: 9px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+  }
+
+  .t-section {
+    font-family: var(--font-ui);
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+
+  .t-cat {
+    font-family: var(--font-ui);
+    font-weight: 700;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .t-tab {
+    font-family: var(--font-ui);
+    font-weight: 700;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .t-button {
+    font-family: var(--font-ui);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .t-button-sm {
+    font-family: var(--font-ui);
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .t-chip {
+    font-family: var(--font-ui);
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .t-title {
+    font-family: var(--font-ui);
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 1.25;
+  }
+
+  .t-body {
+    font-family: var(--font-ui);
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .t-sub {
+    font-family: var(--font-ui);
+    font-weight: 500;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  .t-meta {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .t-meta-11 {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .t-gutter {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 10px;
+  }
+}
+
+/* ------------------------------------------------------------ interaction */
+
+.press {
+  transition: transform 200ms var(--ease-default),
+    background-color 200ms var(--ease-default),
+    border-color 200ms var(--ease-default),
+    opacity 200ms var(--ease-default);
+}
+
+.press:active {
+  transform: translateY(1px);
+}
+
+.press-gold:active {
+  background-color: var(--gold-press);
+}
+
+/* Elevation is a border shift or a hard edge — never a blurred shadow. */
+.plaque {
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
+}
+
+/* The dashed rule under a reset gap. */
+.reset-rule {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--hairline) 0 5px,
+    transparent 5px 11px
+  );
+}
+
+.scrim {
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.sheet-enter {
+  animation: sheet-in 320ms var(--ease-snap);
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .press,
+  .sheet-enter {
+    transition: none;
+    animation: none;
+  }
+}
