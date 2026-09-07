@@ -1,56 +1,71 @@
-import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import { CALENDAR_TIME_ZONE, calendar } from "@/lib/calendar";
 import { repository } from "@/lib/data";
-import { formatClock, minutesOfDay } from "@/lib/domain/time";
 import { Content } from "@/components/chrome";
+import { AppearanceRow } from "./appearance-row";
 import { SettingsChrome } from "./settings-chrome";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const now = new Date();
   const repo = repository();
   const settings = await repo.getSettings();
 
   const facts: [string, string][] = [
-    ["STORAGE", repo.kind === "supabase" ? "SUPABASE" : "DEMO · IN MEMORY"],
-    ["CALENDAR", calendar().kind === "google" ? "GOOGLE CALENDAR" : "STUB · NOT CONNECTED"],
-    ["TIME ZONE", CALENDAR_TIME_ZONE.toUpperCase()],
-    ["EVENT PREFIX", settings.gcalEventPrefix.trim()],
-    ["DEEP FOCUS CAP", `${settings.deepFocusCap} PER WEEKDAY`],
-    ["RESET LENGTH", `${settings.resetMinutes} MIN`],
+    ["Storage", repo.kind === "supabase" ? "Supabase" : "Demo, in memory"],
+    ["Calendar", calendar().kind === "google" ? "Google Calendar" : "Not connected"],
+    ["Time zone", CALENDAR_TIME_ZONE.replace("_", " ")],
+    ["Event prefix", settings.gcalEventPrefix.trim()],
+    ["Deep focus cap", `${settings.deepFocusCap} per weekday`],
+    ["Reset length", `${settings.resetMinutes} min`],
   ];
 
   return (
-    <SettingsChrome clock={formatClock(minutesOfDay(now, CALENDAR_TIME_ZONE))}>
-      <Content>
-        <Link
-          href="/settings/week-template"
-          className="press flex items-center justify-between border-t border-hairline py-[14px]"
-        >
-          <span className="t-section text-text-faded">WEEK TEMPLATE</span>
-          <span className="flex items-center gap-2">
-            <span className="t-meta text-text-secondary">WHEN THE WEEK IS OPEN</span>
-            <ChevronRight size={14} strokeWidth={1.5} className="text-text-faded" />
-          </span>
-        </Link>
+    <SettingsChrome>
+      <Content className="pt-4">
+        <SettingsGroup facts={[]}>
+          <a href="/settings/week-template" className="ios-row pressable">
+            <span className="t-body flex-1">Week template</span>
+            <span className="t-body" style={{ color: "var(--label-2)" }}>
+              When the week is open
+            </span>
+            <span style={{ color: "var(--label-3)" }}>›</span>
+          </a>
+        </SettingsGroup>
 
-        {facts.map(([label, value]) => (
-          <div
-            key={label}
-            className="flex items-center justify-between border-t border-hairline py-[14px]"
-          >
-            <span className="t-section text-text-faded">{label}</span>
-            <span className="t-meta text-text-secondary">{value}</span>
-          </div>
-        ))}
+        <AppearanceRow initialTheme={settings.theme} />
 
-        <p className="t-meta mt-4 text-text-faded" style={{ lineHeight: 1.7 }}>
-          NOTHING IS WRITTEN TO THE CALENDAR WITHOUT AN APPROVED DIFF.
-        </p>
-        <div className="h-4" />
+        <SettingsGroup
+          facts={facts}
+          footer="Nothing is written to the calendar without an approved diff."
+        />
       </Content>
     </SettingsChrome>
+  );
+}
+
+function SettingsGroup({
+  facts,
+  footer,
+  children,
+}: {
+  facts: [string, string][];
+  footer?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <section className="mb-6">
+      <div className="ios-group">
+        {children}
+        {facts.map(([label, value]) => (
+          <div key={label} className="ios-row">
+            <span className="t-body flex-1">{label}</span>
+            <span className="t-body" style={{ color: "var(--label-2)" }}>
+              {value}
+            </span>
+          </div>
+        ))}
+      </div>
+      {footer ? <div className="ios-group-footer">{footer}</div> : null}
+    </section>
   );
 }

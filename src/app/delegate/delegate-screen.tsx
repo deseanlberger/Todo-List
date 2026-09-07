@@ -4,22 +4,20 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Plus } from "lucide-react";
 import { assignTask, setHandedOff } from "@/app/actions";
-import { ActionBar, Content, Header, StatusBar, TabBar } from "@/components/chrome";
-import { EmptyState, PrimaryButton } from "@/components/ui";
-import { formatDueLabel } from "@/lib/domain/time";
+import { ActionBar, Content, Header, TabBar } from "@/components/chrome";
+import { Button, EmptyState, Group } from "@/components/ui";
+import { formatDueShort } from "@/lib/domain/time";
 import type { Task } from "@/lib/domain/types";
 
-/** The coaches items usually go to. Free text, so this is a shortcut list. */
+/** The coaches items usually go to. Free text, so this is just a shortcut. */
 const ROSTER = ["Annie", "Jake", "Ty", "Matthew", "Michael", "Megan", "D'Lainey"];
 
 export function DelegateScreen({
   tasks,
-  clock,
   timeZone,
   blockLabel,
 }: {
   tasks: Task[];
-  clock: string;
   timeZone: string;
   blockLabel: string;
 }) {
@@ -31,13 +29,13 @@ export function DelegateScreen({
   const groups = useMemo(() => {
     const byPerson = new Map<string, Task[]>();
     for (const task of tasks) {
-      const key = task.assignee?.trim() || "UNASSIGNED";
+      const key = task.assignee?.trim() || "Unassigned";
       if (!byPerson.has(key)) byPerson.set(key, []);
       byPerson.get(key)!.push(task);
     }
     return [...byPerson.entries()]
       .sort(([a], [b]) =>
-        a === "UNASSIGNED" ? 1 : b === "UNASSIGNED" ? -1 : a.localeCompare(b),
+        a === "Unassigned" ? 1 : b === "Unassigned" ? -1 : a.localeCompare(b),
       )
       .map(([name, items]) => ({ name, items }));
   }, [tasks]);
@@ -64,51 +62,29 @@ export function DelegateScreen({
 
   return (
     <>
-      <StatusBar clock={clock} />
-      <Header eyebrow={blockLabel} title="DELEGATE" />
+      <Header title="Delegate" subtitle={blockLabel} />
 
       <Content>
         {groups.length === 0 ? (
-          <EmptyState>
-            Nothing to hand off. Delegate items never claim calendar time of their own.
-          </EmptyState>
+          <EmptyState
+            title="Nothing to hand off"
+            detail="Delegate items never claim calendar time of their own."
+          />
         ) : null}
 
         {groups.map((group) => {
-          const unassigned = group.name === "UNASSIGNED";
+          const unassigned = group.name === "Unassigned";
           return (
-            <section key={group.name} className="mb-4">
-              <div className="mb-2 flex items-center gap-2.5">
-                {unassigned ? null : (
-                  <span
-                    className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full"
-                    style={{ border: "1px solid var(--antique-gold)" }}
-                    aria-hidden="true"
-                  >
-                    <span
-                      style={{
-                        fontFamily: "var(--font-display)",
-                        fontSize: 13,
-                        color: "var(--antique-gold)",
-                      }}
-                    >
-                      {group.name.charAt(0).toUpperCase()}
-                    </span>
-                  </span>
-                )}
-                <span
-                  className="t-day shrink-0"
-                  style={{
-                    fontSize: 19,
-                    color: unassigned ? "var(--text-faded)" : "var(--text)",
-                  }}
-                >
-                  {group.name.toUpperCase()}
+            <Group
+              key={group.name}
+              header={
+                <span className="flex items-center gap-2">
+                  {unassigned ? null : <Avatar name={group.name} />}
+                  {group.name}
+                  <span style={{ color: "var(--label-3)" }}>{group.items.length}</span>
                 </span>
-                <span className="h-px flex-1 bg-hairline" />
-                <span className="t-meta shrink-0 text-text-faded">{group.items.length}</span>
-              </div>
-
+              }
+            >
               {group.items.map((task) => {
                 const handed = Boolean(task.handedOffAt);
                 const isChecked = checked.has(task.id);
@@ -117,66 +93,57 @@ export function DelegateScreen({
                     <button
                       type="button"
                       onClick={() =>
-                        unassigned ? setAssigning(assigning === task.id ? null : task.id) : toggle(task)
+                        unassigned
+                          ? setAssigning(assigning === task.id ? null : task.id)
+                          : toggle(task)
                       }
-                      className="press mb-1.5 flex w-full items-center gap-[11px] rounded-[2px] px-3 py-[10px]"
-                      style={{
-                        background: "var(--panel)",
-                        border: unassigned
-                          ? "1px dashed var(--hairline)"
-                          : "1px solid var(--hairline)",
-                        opacity: handed ? 0.5 : 1,
-                      }}
+                      className="ios-row ios-row-inset pressable w-full"
+                      style={{ opacity: handed ? 0.45 : 1 }}
                     >
                       {unassigned ? (
-                        <span
-                          className="flex h-[15px] w-[15px] shrink-0 items-center justify-center"
-                          style={{ color: "var(--gold-text)" }}
-                          aria-hidden="true"
-                        >
-                          <Plus size={14} strokeWidth={1.5} />
-                        </span>
+                        <Plus
+                          size={20}
+                          strokeWidth={2.2}
+                          className="shrink-0"
+                          style={{ color: "var(--blue)" }}
+                        />
                       ) : (
                         <span
-                          className="flex h-[15px] w-[15px] shrink-0 items-center justify-center"
-                          style={{
-                            border: handed
-                              ? "1px solid var(--positive)"
-                              : `1px solid ${isChecked ? "var(--gold)" : "var(--text-faded)"}`,
-                            background: isChecked ? "var(--gold)" : "transparent",
-                          }}
                           aria-hidden="true"
+                          className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full"
+                          style={{
+                            border: isChecked || handed ? "none" : "1.5px solid var(--label-3)",
+                            background: handed
+                              ? "var(--green)"
+                              : isChecked
+                                ? "var(--blue)"
+                                : "transparent",
+                          }}
                         >
-                          {handed ? (
-                            <Check size={11} strokeWidth={2} color="var(--positive)" />
-                          ) : isChecked ? (
-                            <Check size={11} strokeWidth={2} color="#000" />
+                          {handed || isChecked ? (
+                            <Check size={14} strokeWidth={3} color="#fff" />
                           ) : null}
                         </span>
                       )}
 
                       <span
-                        className="t-title min-w-0 flex-1 truncate"
-                        style={{
-                          fontSize: 14,
-                          textDecoration: handed ? "line-through" : undefined,
-                          textDecorationColor: "var(--text-faded)",
-                        }}
+                        className="t-body min-w-0 flex-1 truncate"
+                        style={{ textDecoration: handed ? "line-through" : undefined }}
                       >
                         {task.title}
                       </span>
 
-                      <span className="t-meta shrink-0 text-text-faded">
+                      <span className="t-subhead shrink-0" style={{ color: "var(--label-2)" }}>
                         {handed
-                          ? "HANDED"
+                          ? "Handed"
                           : task.dueDate
-                            ? formatDueLabel(task.dueDate, timeZone)
-                            : "—"}
+                            ? formatDueShort(task.dueDate, timeZone)
+                            : ""}
                       </span>
                     </button>
 
                     {assigning === task.id ? (
-                      <div className="mb-2 flex flex-wrap gap-1.5 pl-7">
+                      <div className="flex flex-wrap gap-2 px-4 pt-1 pb-3">
                         {ROSTER.map((person) => (
                           <button
                             key={person}
@@ -188,13 +155,10 @@ export function DelegateScreen({
                                 router.refresh();
                               })
                             }
-                            className="press t-cat rounded-[2px] px-2.5 py-[6px]"
-                            style={{
-                              border: "1px solid var(--hairline)",
-                              color: "var(--text-secondary)",
-                            }}
+                            className="pressable-solid t-subhead rounded-full px-3 py-1.5"
+                            style={{ background: "var(--fill)", color: "var(--blue)" }}
                           >
-                            {person.toUpperCase()}
+                            {person}
                           </button>
                         ))}
                       </div>
@@ -202,18 +166,22 @@ export function DelegateScreen({
                   </div>
                 );
               })}
-            </section>
+            </Group>
           );
         })}
-        <div className="h-2" />
       </Content>
 
       {outstanding > 0 ? (
         <ActionBar>
-          <PrimaryButton
-            label={`MARK ${checked.size} HANDED OFF`}
-            disabled={checked.size === 0}
-            pending={pending}
+          <Button
+            label={
+              checked.size === 0
+                ? "Select items to hand off"
+                : `Mark ${checked.size} handed off`
+            }
+            kind="filled"
+            full
+            disabled={checked.size === 0 || pending}
             onClick={markHandedOff}
           />
         </ActionBar>
@@ -221,5 +189,19 @@ export function DelegateScreen({
 
       <TabBar />
     </>
+  );
+}
+
+function Avatar({ name }: { name: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="flex h-[22px] w-[22px] items-center justify-center rounded-full"
+      style={{ background: "var(--fill)" }}
+    >
+      <span className="t-caption2" style={{ color: "var(--label-2)", fontWeight: 600 }}>
+        {name.charAt(0).toUpperCase()}
+      </span>
+    </span>
   );
 }

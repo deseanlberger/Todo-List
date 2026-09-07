@@ -2,104 +2,102 @@
 
 import Link from "next/link";
 import { CATEGORIES } from "@/lib/domain/categories";
-import { formatDueLabel } from "@/lib/domain/time";
+import { formatDueShort } from "@/lib/domain/time";
 import type { Task } from "@/lib/domain/types";
-import { Stars, labelColor, railColor } from "./ui";
+import { Dot, Stars, categoryColor } from "./ui";
 
+/** `2 blocks`, or `Handoff` for a delegate item. */
 export function blockCountLabel(task: Task): string {
-  if (task.category === "delegate") return "HANDOFF";
-  return `${task.estimatedBlocks} BLOCK${task.estimatedBlocks === 1 ? "" : "S"}`;
+  if (task.category === "delegate") return "Handoff";
+  return `${task.estimatedBlocks} block${task.estimatedBlocks === 1 ? "" : "s"}`;
 }
 
-export function metaLine(task: Task, timeZone: string): string {
-  const parts = [
-    CATEGORIES[task.category].label,
-    task.location === "gym" ? "GYM" : "HOME",
-  ];
-  if (task.dueDate) parts.push(`DUE ${formatDueLabel(task.dueDate, timeZone)}`);
-  return parts.join(" · ");
+function sentenceCase(value: string): string {
+  return value.charAt(0) + value.slice(1).toLowerCase();
 }
 
 /**
- * The All Tasks row. Category colour is confined to the 3px rail and the
- * category's own word in the meta line — never a fill, never the title.
+ * A task row, shaped like a Reminders row: a coloured dot for the category,
+ * the title, and a quieter second line underneath.
  */
 export function TaskRow({
   task,
   timeZone,
   urgent,
   onRate,
+  showCategory = true,
 }: {
   task: Task;
   timeZone: string;
   urgent: boolean;
   onRate: (value: number) => void;
+  /** Hidden when the group header already says it. */
+  showCategory?: boolean;
 }) {
-  const meta = metaLine(task, timeZone);
-  const [category, location, due] = meta.split(" · ");
+  const done = task.status === "done";
+
+  const meta: { text: string; color?: string }[] = [];
+  if (showCategory) {
+    meta.push({ text: sentenceCase(CATEGORIES[task.category].label) });
+  }
+  meta.push({ text: task.location === "gym" ? "Gym" : "Home" });
+  if (task.dueDate) {
+    meta.push({
+      text: formatDueShort(task.dueDate, timeZone),
+      color: urgent ? "var(--red)" : undefined,
+    });
+  }
 
   return (
     <Link
       href={`/tasks/${task.id}`}
-      className="press mb-1.5 flex overflow-hidden rounded-[2px] border border-hairline bg-panel"
+      className="ios-row ios-row-inset pressable"
+      style={{ alignItems: "flex-start" }}
     >
-      <span
-        aria-hidden="true"
-        className="w-[3px] shrink-0"
-        style={{ background: railColor(task.category) }}
-      />
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5 px-[11px] py-[9px]">
-        <div className="flex items-baseline justify-between gap-3">
+      <span className="shrink-0 pt-[6px]">
+        <Dot color={categoryColor(task.category)} />
+      </span>
+
+      <span className="min-w-0 flex-1">
+        {/* Wrap rather than truncate: a clipped title is unreadable, and the
+            star row leaves too little width to promise one line. */}
+        <span
+          className="t-body block"
+          style={{
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+          data-done={done}
+        >
           <span
-            className="t-title min-w-0 flex-1"
             style={{
-              textDecoration: task.status === "done" ? "line-through" : undefined,
-              textDecorationColor: "var(--text-faded)",
-              color: task.status === "done" ? "var(--text-faded)" : "var(--text)",
+              color: done ? "var(--label-3)" : "var(--label)",
+              textDecoration: done ? "line-through" : undefined,
             }}
           >
             {task.title}
           </span>
-          <span className="t-meta shrink-0 text-text-faded">{blockCountLabel(task)}</span>
-        </div>
-        <div className="flex items-center justify-between gap-2">
-          {/*
-            The longest meta line the handoff shows — "HIGH PRIORITY ADMIN ·
-            HOME · DUE WED SEP 02" — needs 248px at 9px Roboto Mono, and the
-            spec-mandated 77px star row leaves 234 in a 390px frame. So the
-            category segment is the one allowed to shrink: it is already
-            carried by the 3px rail, whereas the due date is carried by
-            nothing else. The date never truncates.
-          */}
-          <span className="t-meta flex min-w-0 flex-1 text-text-secondary">
-            <span
-              className="truncate"
-              style={{ color: labelColor(task.category) }}
-            >
-              {category}
+        </span>
+        <span className="t-footnote mt-0.5 block truncate" style={{ color: "var(--label-2)" }}>
+          {meta.map((part, index) => (
+            <span key={index} style={part.color ? { color: part.color } : undefined}>
+              {index > 0 ? " · " : ""}
+              {part.text}
             </span>
-            {location ? <span className="shrink-0">&nbsp;· {location}</span> : null}
-            {due ? (
-              <span
-                className="shrink-0"
-                // "Anything inside 48h reads urgent" — the sort explanation
-                // line promises it, so the row has to deliver it.
-                style={urgent ? { color: "var(--urgent)" } : undefined}
-              >
-                &nbsp;· {due}
-              </span>
-            ) : null}
-          </span>
-          <span className="-mr-1 shrink-0" onClick={(event) => event.preventDefault()}>
-            <Stars value={task.financialImpact} onChange={onRate} />
-          </span>
-        </div>
-      </div>
+          ))}
+        </span>
+      </span>
+
+      <span className="shrink-0 pt-[1px]" onClick={(event) => event.preventDefault()}>
+        <Stars value={task.financialImpact} onChange={onRate} />
+      </span>
     </Link>
   );
 }
 
-/** The compact variant used on Week and inside the close-out swap picker. */
+/** The compact variant used in the close-out swap picker. */
 export function CompactTaskRow({
   task,
   right,
@@ -115,26 +113,21 @@ export function CompactTaskRow({
     <button
       type="button"
       onClick={onClick}
-      className="press mb-1.5 flex w-full overflow-hidden rounded-[2px] border bg-panel"
-      style={{
-        borderColor: selected ? "var(--antique-gold)" : "var(--hairline)",
-        background: selected ? "var(--card-navy)" : "var(--panel)",
-      }}
+      className="ios-row ios-row-inset pressable w-full"
+      style={selected ? { background: "var(--fill-2)" } : undefined}
     >
-      <span
-        aria-hidden="true"
-        className="w-[3px] shrink-0"
-        style={{ background: railColor(task.category) }}
-      />
-      <span className="flex min-w-0 flex-1 items-center justify-between gap-3 px-[11px] py-[9px]">
-        <span
-          className="t-title min-w-0 flex-1 truncate"
-          style={{ color: selected ? "#FFFFFF" : "var(--text)" }}
-        >
-          {task.title}
+      <Dot color={categoryColor(task.category)} />
+      <span className="t-body min-w-0 flex-1 truncate">{task.title}</span>
+      {right ? (
+        <span className="t-subhead tnum shrink-0" style={{ color: "var(--label-2)" }}>
+          {right}
         </span>
-        {right ? <span className="t-meta shrink-0 text-text-faded">{right}</span> : null}
-      </span>
+      ) : null}
+      {selected ? (
+        <span className="t-headline shrink-0" style={{ color: "var(--blue)" }}>
+          ✓
+        </span>
+      ) : null}
     </button>
   );
 }

@@ -160,7 +160,7 @@ create table scheduler_settings (
   standard_minutes    smallint not null default 30,
 
   gcal_event_prefix   text not null default '[ODY] ',
-  theme               text not null default 'dark' check (theme in ('dark', 'light')),
+  theme               text not null default 'light' check (theme in ('dark', 'light')),
   default_sort        text not null default 'category'
                         check (default_sort in ('category', 'due', 'stars')),
 

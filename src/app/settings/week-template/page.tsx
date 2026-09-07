@@ -1,6 +1,4 @@
-import { CALENDAR_TIME_ZONE } from "@/lib/calendar";
 import { repository } from "@/lib/data";
-import { formatClock, minutesOfDay } from "@/lib/domain/time";
 import { WeekTemplateEditor } from "./editor";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +9,6 @@ export default async function WeekTemplatePage() {
 
   return (
     <WeekTemplateEditor
-      clock={formatClock(minutesOfDay(new Date(), CALENDAR_TIME_ZONE))}
       initialWindows={windows.map((window) => ({
         id: window.id,
         weekday: window.weekday,

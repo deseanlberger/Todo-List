@@ -71,4 +71,10 @@ export interface TodayView {
   urgentUnplaced: Task[];
   /** Everything open, for the swap picker inside the close-out sheet. */
   swapCandidates: Task[];
+  /**
+   * The next scheduled block after today, when there is one. Today can be
+   * legitimately empty while the week ahead is full — saying so beats
+   * telling the user to run something they already ran.
+   */
+  nextUp: { title: string; date: string; dayIndex: number; start: number } | null;
 }

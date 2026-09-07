@@ -621,3 +621,43 @@ describe("§12 overflow", () => {
     expect(diff.didntFit.map((t) => t.title)).toEqual(["C", "D"]);
   });
 });
+
+describe("target week", () => {
+  it("reports no open slots once the week is spent", () => {
+    // Sunday evening: the whole Mon-start week is behind us and Sunday's
+    // window has closed, so there is nowhere left to place anything.
+    const result = scheduleWeek({
+      weekStart: WEEK_START,
+      tasks: [makeTask({ title: "Payroll" })],
+      windows: [makeWindow(6, "08:00", "11:00")],
+      overrides: [],
+      events: [],
+      currentBlocks: [],
+      settings: makeSettings(),
+      // Sunday 2026-09-13 at 21:00 local, past the 08:00-11:00 window.
+      now: new Date("2026-09-14T04:00:00Z"),
+      timeZone: TEST_TZ,
+    });
+
+    expect(result.slots).toHaveLength(0);
+    expect(result.layout.placements).toHaveLength(0);
+  });
+
+  it("still reports open slots while the week has time left", () => {
+    const result = scheduleWeek({
+      weekStart: WEEK_START,
+      tasks: [makeTask({ title: "Payroll" })],
+      windows: [makeWindow(6, "08:00", "11:00")],
+      overrides: [],
+      events: [],
+      currentBlocks: [],
+      settings: makeSettings(),
+      // Sunday morning, before the window opens.
+      now: new Date("2026-09-13T13:00:00Z"),
+      timeZone: TEST_TZ,
+    });
+
+    expect(result.slots.length).toBeGreaterThan(0);
+    expect(result.layout.placements).toHaveLength(1);
+  });
+});

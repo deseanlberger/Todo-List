@@ -7,7 +7,7 @@ import type {
   ScheduledBlock,
   Task,
 } from "@/lib/domain/types";
-import { buildOpenSlots, toWalls } from "./availability";
+import { buildOpenSlots, toWalls, type Slot } from "./availability";
 import { buildDiff, type ScheduleDiff } from "./diff";
 import { eventIsAtGym } from "./location";
 import { planWeek, type Layout, type Placement, type ResetGap } from "./place";
@@ -39,6 +39,8 @@ export interface ScheduleWeekInput {
 export interface ScheduleWeekResult {
   layout: Layout;
   diff: ScheduleDiff;
+  /** The open runs the layout was placed into. Empty means no capacity. */
+  slots: Slot[];
 }
 
 /**
@@ -86,7 +88,7 @@ export function scheduleWeek(input: ScheduleWeekInput): ScheduleWeekResult {
     now: input.now,
   });
 
-  return { layout, diff };
+  return { layout, diff, slots };
 }
 
 /** Turn a placement back into real instants for the calendar write. */

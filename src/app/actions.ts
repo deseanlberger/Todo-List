@@ -6,9 +6,9 @@ import { categoryMeta } from "@/lib/domain/categories";
 import type { SortMode, Task, TaskCategory, TaskLocation } from "@/lib/domain/types";
 import {
   approveWeek,
-  currentWeekStart,
   discardWeek,
   proposeWeek,
+  resolveTargetWeek,
 } from "@/lib/schedule-run";
 
 function refresh(...paths: string[]) {
@@ -150,7 +150,7 @@ export async function closeOutBlock(input: {
 /* ------------------------------------------------------------- scheduling */
 
 export async function scheduleMyWeek(weekStart?: string) {
-  const week = weekStart ?? currentWeekStart();
+  const week = weekStart ?? (await resolveTargetWeek());
   const pending = await proposeWeek(week);
   refresh("/review");
   return { weekStart: week, changes: pending.diff.totalChanges };

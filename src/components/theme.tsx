@@ -7,8 +7,9 @@ type Theme = "dark" | "light";
 
 const ThemeContext = createContext<{
   theme: Theme;
+  setTheme: (theme: Theme) => void;
   toggle: () => void;
-}>({ theme: "dark", toggle: () => {} });
+}>({ theme: "light", setTheme: () => {}, toggle: () => {} });
 
 export function ThemeProvider({
   initialTheme,
@@ -17,13 +18,19 @@ export function ThemeProvider({
   initialTheme: Theme;
   children: React.ReactNode;
 }) {
-  const [theme, setTheme] = useState<Theme>(initialTheme);
+  const [theme, setThemeState] = useState<Theme>(initialTheme);
+
+  const setTheme = useCallback((next: Theme) => {
+    // Flip the attribute immediately; persist in the background. An
+    // appearance switch that waits on a round trip feels broken.
+    document.documentElement.dataset.theme = next;
+    setThemeState(next);
+    void saveTheme(next);
+  }, []);
 
   const toggle = useCallback(() => {
-    setTheme((current) => {
+    setThemeState((current) => {
       const next: Theme = current === "dark" ? "light" : "dark";
-      // Flip the attribute immediately; persist in the background. A theme
-      // toggle that waits on a round trip feels broken.
       document.documentElement.dataset.theme = next;
       void saveTheme(next);
       return next;
@@ -31,7 +38,9 @@ export function ThemeProvider({
   }, []);
 
   return (
-    <ThemeContext.Provider value={{ theme, toggle }}>{children}</ThemeContext.Provider>
+    <ThemeContext.Provider value={{ theme, setTheme, toggle }}>
+      {children}
+    </ThemeContext.Provider>
   );
 }
 

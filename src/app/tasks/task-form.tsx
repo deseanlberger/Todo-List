@@ -2,35 +2,34 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { Check, Trash2 } from "lucide-react";
 import { createTask, deleteTask, patchTask } from "@/app/actions";
-import { ActionBar, Content, StatusBar } from "@/components/chrome";
+import { Content } from "@/components/chrome";
+import { NavBar } from "@/components/nav-bar";
 import {
   Button,
-  PrimaryButton,
-  SegmentedToggle,
-  categoryLabel,
-  labelColor,
-  railColor,
+  Dot,
+  Group,
+  Row,
+  RowValue,
+  Segmented,
+  Stars,
+  Switch,
+  categoryColor,
 } from "@/components/ui";
 import { CATEGORIES, CATEGORY_ORDER, categoryMeta } from "@/lib/domain/categories";
 import { urgencyLabel } from "@/lib/domain/priority";
-import { formatDueLabel } from "@/lib/domain/time";
 import type { EstimationSample, Task, TaskCategory, TaskLocation } from "@/lib/domain/types";
 
-const MAX_BLOCKS = 3;
+const MAX_BLOCKS = 4;
 
 export function TaskForm({
   task,
-  clock,
-  timeZone,
   nowIso,
   history,
 }: {
   /** Null when creating. */
   task: Task | null;
-  clock: string;
-  timeZone: string;
   nowIso: string;
   history: EstimationSample[];
 }) {
@@ -39,7 +38,9 @@ export function TaskForm({
   const [pickingCategory, setPickingCategory] = useState(false);
 
   const [title, setTitle] = useState(task?.title ?? "");
-  const [category, setCategory] = useState<TaskCategory>(task?.category ?? "high_priority_admin");
+  const [category, setCategory] = useState<TaskCategory>(
+    task?.category ?? "high_priority_admin",
+  );
   const [location, setLocation] = useState<TaskLocation>(task?.location ?? "home");
   const [blocks, setBlocks] = useState(task?.estimatedBlocks ?? 1);
   const [impact, setImpact] = useState(task?.financialImpact ?? 3);
@@ -48,40 +49,35 @@ export function TaskForm({
   const [assignee, setAssignee] = useState(task?.assignee ?? "");
 
   const meta = categoryMeta(category);
-  const now = new Date(nowIso);
-  const urgency = task ? urgencyLabel({ ...task, dueDate: due ? new Date(due).toISOString() : null }, now) : null;
+  const urgency = task
+    ? urgencyLabel(
+        { ...task, dueDate: due ? new Date(due).toISOString() : null },
+        new Date(nowIso),
+      )
+    : null;
 
-  const relevantHistory = history.filter((sample) => sample.category === category).slice(0, 3);
+  const relevant = history.filter((sample) => sample.category === category).slice(0, 3);
 
   const save = () => {
     if (!title.trim()) return;
     startTransition(async () => {
       const dueIso = due ? new Date(due).toISOString() : null;
+      const payload = {
+        title: title.trim(),
+        category,
+        location,
+        estimatedBlocks: meta.schedules ? blocks : 1,
+        financialImpact: impact,
+        dueDate: dueIso,
+        assignee: category === "delegate" ? assignee.trim() || null : null,
+      };
+
       if (task) {
-        await patchTask(task.id, {
-          title: title.trim(),
-          category,
-          location,
-          estimatedBlocks: meta.schedules ? blocks : 1,
-          financialImpact: impact,
-          dueDate: dueIso,
-          isRecurring: recurring,
-          assignee: category === "delegate" ? assignee.trim() || null : null,
-        });
-        router.push("/tasks");
+        await patchTask(task.id, { ...payload, isRecurring: recurring });
       } else {
-        await createTask({
-          title: title.trim(),
-          category,
-          location,
-          estimatedBlocks: blocks,
-          financialImpact: impact,
-          dueDate: dueIso,
-          assignee: category === "delegate" ? assignee.trim() || null : null,
-          notes: null,
-        });
-        router.push("/tasks");
+        await createTask({ ...payload, notes: null });
       }
+      router.push("/tasks");
       router.refresh();
     });
   };
@@ -97,261 +93,194 @@ export function TaskForm({
 
   return (
     <>
-      <StatusBar clock={clock} />
-
-      <header className="flex shrink-0 items-center justify-between px-[22px] pt-1.5 pb-3.5">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          aria-label="Back"
-          className="press -ml-2 flex h-11 w-11 items-center justify-center text-text-secondary"
-        >
-          <ChevronLeft size={20} strokeWidth={1.5} />
-        </button>
-        <span className="t-eyebrow text-text-secondary">
-          {task ? `TASK · #${task.id.slice(-4).toUpperCase()}` : "NEW TASK"}
-        </span>
-        {task ? (
+      <NavBar
+        title={task ? "Task" : "New task"}
+        backLabel="Cancel"
+        trailing={
           <button
             type="button"
-            onClick={remove}
-            aria-label="Delete this task"
-            className="press -mr-2 flex h-11 w-11 items-center justify-center"
-            style={{ color: "var(--urgent)" }}
+            onClick={save}
+            disabled={!title.trim() || pending}
+            className="pressable-solid t-headline rounded-lg px-2 py-1 disabled:opacity-40"
+            style={{ color: "var(--blue)" }}
           >
-            <Trash2 size={18} strokeWidth={1.5} />
+            {pending ? "Saving…" : task ? "Done" : "Add"}
           </button>
-        ) : (
-          <span className="h-11 w-11" />
-        )}
-      </header>
+        }
+      />
 
-      <Content>
-        <div
-          className="mb-4 rounded-[2px] p-3"
-          style={{ background: "var(--card-navy)", border: "1px solid var(--antique-gold)" }}
-        >
-          {urgency ? (
-            <div className="t-cat mb-2" style={{ color: "#C2453F", letterSpacing: "0.22em" }}>
-              {urgency}
-            </div>
-          ) : null}
-          <input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="WHAT IS IT?"
-            aria-label="Task title"
-            className="t-sheet-title w-full bg-transparent outline-none"
-            style={{ color: "#FFFFFF" }}
-          />
-          {task?.captureTranscript ? (
-            <p
-              className="t-sub mt-2.5"
-              style={{ color: "rgba(255,255,255,0.65)", fontSize: 13, lineHeight: 1.5 }}
-            >
-              Captured by {task.captureSource === "telegram_voice" ? "voice" : "text"}
-              {". "}
-              &ldquo;{task.captureTranscript}&rdquo;
-            </p>
-          ) : null}
-        </div>
-
-        <Row label="CATEGORY">
-          <button
-            type="button"
-            onClick={() => setPickingCategory((value) => !value)}
-            aria-expanded={pickingCategory}
-            className="press flex items-center gap-2"
-          >
-            <span
-              className="h-2 w-2 rounded-full"
-              style={{ background: railColor(category) }}
-              aria-hidden="true"
-            />
-            <span className="t-cat" style={{ color: labelColor(category) }}>
-              {categoryLabel(category)}
-            </span>
-            <ChevronRight size={14} strokeWidth={1.5} className="text-text-faded" />
-          </button>
-        </Row>
-
-        {pickingCategory ? (
-          <div className="flex flex-wrap gap-1.5 pb-3">
-            {CATEGORY_ORDER.map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => {
-                  setCategory(option);
-                  setPickingCategory(false);
-                  if (!CATEGORIES[option].schedules) setBlocks(1);
-                }}
-                className="press t-cat rounded-[2px] px-2.5 py-[7px]"
-                style={{
-                  border: `1px solid ${option === category ? labelColor(option) : "var(--hairline)"}`,
-                  color: labelColor(option),
-                }}
-              >
-                {CATEGORIES[option].label}
-              </button>
-            ))}
-          </div>
-        ) : null}
-
-        <Row label="LOCATION">
-          <SegmentedToggle
-            ariaLabel="Location"
-            value={location}
-            options={[
-              { value: "home" as const, label: "HOME" },
-              { value: "gym" as const, label: "GYM" },
-            ]}
-            onChange={setLocation}
-          />
-        </Row>
-
-        {meta.schedules ? (
-          <Row label="BLOCKS">
-            <div className="flex items-center gap-2.5">
-              <span className="t-meta text-text-secondary">
-                EST {blocks * meta.blockMinutes!} MIN
-              </span>
-              <div className="flex gap-1">
-                {Array.from({ length: MAX_BLOCKS }, (_, index) => index + 1).map((step) => (
-                  <button
-                    key={step}
-                    type="button"
-                    aria-label={`Set the estimate to ${step} block${step === 1 ? "" : "s"}`}
-                    onClick={() => setBlocks(step)}
-                    className="press h-[22px] w-[22px]"
-                    style={{
-                      background: step <= blocks ? railColor(category) : "transparent",
-                      border: `1px solid ${step <= blocks ? railColor(category) : "var(--hairline)"}`,
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          </Row>
-        ) : null}
-
-        {category === "delegate" ? (
-          <Row label="ASSIGNEE">
+      <Content className="pt-4">
+        <Group footer={task?.captureTranscript ? undefined : "What needs doing?"}>
+          <div className="ios-row" style={{ paddingTop: 13, paddingBottom: 13 }}>
             <input
-              value={assignee}
-              onChange={(event) => setAssignee(event.target.value)}
-              placeholder="WHO?"
-              aria-label="Assignee"
-              className="t-meta-11 w-[120px] bg-transparent text-right text-text outline-none placeholder:text-text-faded"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Title"
+              aria-label="Task title"
+              autoFocus={!task}
+              className="t-body w-full bg-transparent outline-none"
+              style={{ color: "var(--label)" }}
+            />
+          </div>
+          {urgency ? (
+            <div className="ios-row">
+              <span className="t-subhead" style={{ color: "var(--red)" }}>
+                {sentence(urgency)}
+              </span>
+            </div>
+          ) : null}
+          {task?.captureTranscript ? (
+            <div className="ios-row" style={{ alignItems: "flex-start" }}>
+              <span className="t-footnote" style={{ color: "var(--label-2)" }}>
+                Captured by {task.captureSource === "telegram_voice" ? "voice" : "text"}.
+                &ldquo;{task.captureTranscript}&rdquo;
+              </span>
+            </div>
+          ) : null}
+        </Group>
+
+        <Group>
+          <Row onClick={() => setPickingCategory((value) => !value)} chevron>
+            <span className="t-body flex-1">Category</span>
+            <Dot color={categoryColor(category)} />
+            <RowValue>{sentence(CATEGORIES[category].label)}</RowValue>
+          </Row>
+
+          {pickingCategory
+            ? CATEGORY_ORDER.map((option) => (
+                <Row
+                  key={option}
+                  inset
+                  onClick={() => {
+                    setCategory(option);
+                    setPickingCategory(false);
+                    if (!CATEGORIES[option].schedules) setBlocks(1);
+                  }}
+                >
+                  <Dot color={categoryColor(option)} />
+                  <span className="t-body flex-1">{sentence(CATEGORIES[option].label)}</span>
+                  {option === category ? (
+                    <Check size={20} strokeWidth={2.5} style={{ color: "var(--blue)" }} />
+                  ) : null}
+                </Row>
+              ))
+            : null}
+
+          <Row>
+            <span className="t-body flex-1">Location</span>
+            <Segmented
+              ariaLabel="Location"
+              className="w-[150px]"
+              value={location}
+              options={[
+                { value: "home" as const, label: "Home" },
+                { value: "gym" as const, label: "Gym" },
+              ]}
+              onChange={setLocation}
             />
           </Row>
-        ) : null}
 
-        <Row label="DUE">
-          <div className="flex items-center gap-2">
-            {due ? (
-              <span className="t-meta text-text-secondary">
-                {formatDueLabel(new Date(due).toISOString(), timeZone)}
+          {meta.schedules ? (
+            <Row>
+              <span className="t-body flex-1">Blocks</span>
+              <span className="t-subhead tnum" style={{ color: "var(--label-2)" }}>
+                {blocks * meta.blockMinutes!} min
               </span>
-            ) : null}
+              <Segmented
+                ariaLabel="Estimated blocks"
+                className="w-[132px]"
+                value={String(blocks)}
+                options={Array.from({ length: MAX_BLOCKS }, (_, index) => ({
+                  value: String(index + 1),
+                  label: String(index + 1),
+                }))}
+                onChange={(value) => setBlocks(Number(value))}
+              />
+            </Row>
+          ) : null}
+
+          {category === "delegate" ? (
+            <Row>
+              <span className="t-body flex-1">Assignee</span>
+              <input
+                value={assignee}
+                onChange={(event) => setAssignee(event.target.value)}
+                placeholder="Who?"
+                aria-label="Assignee"
+                className="t-body w-[140px] bg-transparent text-right outline-none"
+                style={{ color: "var(--label-2)" }}
+              />
+            </Row>
+          ) : null}
+        </Group>
+
+        <Group footer="Anything due inside 48 hours is treated as urgent.">
+          <Row>
+            <span className="t-body flex-1">Due</span>
             <input
               type="datetime-local"
               value={due}
               onChange={(event) => setDue(event.target.value)}
               aria-label="Due date"
-              className="t-meta-11 bg-transparent text-right text-text outline-none"
+              className="t-body tnum bg-transparent text-right outline-none"
+              style={{ color: "var(--label-2)" }}
             />
-          </div>
-        </Row>
+          </Row>
 
-        <Row label="FINANCIAL IMPACT">
-          <div className="flex items-end gap-1">
-            {[1, 2, 3, 4, 5].map((step) => (
-              <button
-                key={step}
-                type="button"
-                aria-label={`Set financial impact to ${step}`}
-                onClick={() => setImpact(step)}
-                className="press h-5 w-[14px]"
-                style={{
-                  background: step <= impact ? "var(--antique-gold)" : "transparent",
-                  border: `1px solid ${step <= impact ? "var(--antique-gold)" : "var(--hairline)"}`,
-                }}
-              />
-            ))}
-          </div>
-        </Row>
+          <Row>
+            <span className="t-body flex-1">Importance</span>
+            <Stars value={impact} onChange={setImpact} />
+          </Row>
 
-        <Row label="RECURRING">
-          <button
-            type="button"
-            role="switch"
-            aria-checked={recurring}
-            aria-label="Recurring"
-            onClick={() => setRecurring((value) => !value)}
-            className="press relative h-[22px] w-[42px] rounded-[2px]"
-            style={{
-              border: "1px solid var(--hairline)",
-              background: recurring ? "var(--gold)" : "transparent",
+          <Row>
+            <span className="t-body flex-1">Recurring</span>
+            <Switch checked={recurring} onChange={setRecurring} ariaLabel="Recurring" />
+          </Row>
+        </Group>
+
+        {task ? (
+          <>
+            <Group header="Estimator">
+              <Row>
+                <span className="t-body flex-1">Recent history</span>
+                <RowValue>
+                  {relevant.length === 0
+                    ? "No completions yet"
+                    : `est ${average(relevant.map((s) => s.estimatedBlocks))} / act ${average(
+                        relevant.map((s) => s.actualBlocks),
+                      )}`}
+                </RowValue>
+              </Row>
+            </Group>
+
+            <Group>
+              <Row onClick={remove}>
+                <Trash2 size={19} strokeWidth={2} style={{ color: "var(--red)" }} />
+                <span className="t-body flex-1" style={{ color: "var(--red)" }}>
+                  Delete task
+                </span>
+              </Row>
+            </Group>
+          </>
+        ) : null}
+
+        {task && category !== "delegate" ? (
+          <Button
+            label="Hand this off instead"
+            full
+            onClick={() => {
+              setCategory("delegate");
+              setBlocks(1);
             }}
-          >
-            <span
-              className="absolute top-[2px] h-4 w-4"
-              style={{
-                left: recurring ? 23 : 2,
-                background: recurring ? "#000" : "var(--text-faded)",
-                transition: "left 200ms var(--ease-default)",
-              }}
-            />
-          </button>
-        </Row>
-
-        <div className="flex items-center justify-between border-t border-hairline py-[14px]">
-          <span className="t-section text-text-faded">ESTIMATOR HISTORY</span>
-          <span className="t-meta text-text-secondary">
-            {relevantHistory.length === 0
-              ? "NO COMPLETIONS YET"
-              : `LAST ${relevantHistory.length} · EST ${average(
-                  relevantHistory.map((s) => s.estimatedBlocks),
-                )} / ACT ${average(relevantHistory.map((s) => s.actualBlocks))}`}
-          </span>
-        </div>
-        <div className="h-3" />
+          />
+        ) : null}
       </Content>
-
-      <ActionBar>
-        <div className="flex gap-2">
-          {task && category !== "delegate" ? (
-            <Button
-              label="DELEGATE IT"
-              className="flex-1"
-              onClick={() => {
-                setCategory("delegate");
-                setBlocks(1);
-              }}
-            />
-          ) : null}
-          <div style={{ flex: 1.4 }}>
-            <PrimaryButton
-              label={task ? "SAVE" : "CREATE TASK"}
-              pending={pending}
-              disabled={!title.trim()}
-              onClick={save}
-            />
-          </div>
-        </div>
-      </ActionBar>
     </>
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-3 border-t border-hairline py-[14px]">
-      <span className="t-section shrink-0 text-text-faded">{label}</span>
-      <div className="shrink-0">{children}</div>
-    </div>
-  );
+function sentence(value: string): string {
+  return value.charAt(0) + value.slice(1).toLowerCase();
 }
 
 function average(values: number[]): string {
@@ -363,6 +292,7 @@ function average(values: number[]): string {
 /** `datetime-local` wants `YYYY-MM-DDTHH:MM` in the browser's own zone. */
 function toLocalInput(iso: string): string {
   const date = new Date(iso);
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+    .toISOString()
+    .slice(0, 16);
 }

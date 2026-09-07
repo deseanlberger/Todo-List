@@ -1,115 +1,111 @@
 @import "tailwindcss";
 
 /* ------------------------------------------------------------------ tokens
- * Values are taken verbatim from the design handoff. Dark is the default
- * view; the light view redefines the same names so every component can be
- * written once against the semantic token.
+ * Apple's system palette. Names follow UIKit's semantic colours rather than
+ * the literal greys, so a screen asks for "the secondary label colour" and
+ * gets the right one in either appearance.
  */
 
 :root {
-  --bg: #000000;
-  --panel: #0a0a0a;
-  --panel-inert: #050505;
-  --hairline: #1c1c1c;
-  --hairline-2: #232323;
-  --text: #ffffff;
-  --text-secondary: #a0a0a0;
-  --text-faded: #5a5a5a;
-  --gold: #ffd700;
-  --card-navy: #0d1a2b;
-  --antique-gold: #d3af37;
+  /* Backgrounds — grouped, because every screen here is a list of groups. */
+  --bg: #f2f2f7; /* systemGroupedBackground */
+  --card: #ffffff; /* secondarySystemGroupedBackground */
+  --card-nested: #f2f2f7; /* tertiarySystemGroupedBackground */
 
-  /* Gold used as *text*. The light view must never do this, so it is its
-   * own token rather than a reuse of --gold. */
-  --gold-text: #ffd700;
-  --gold-press: #d4af00;
+  /* Labels. The alpha is deliberate: iOS labels tint with the surface. */
+  --label: #000000;
+  --label-2: rgba(60, 60, 67, 0.6);
+  --label-3: rgba(60, 60, 67, 0.3);
+  --label-4: rgba(60, 60, 67, 0.18);
 
-  --star-fill: #ffd700;
-  --star-empty: #2a2a2a;
-  --grid-line: #111111;
-  --tab-active: #ffd700;
-  --tab-inactive: #5a5a5a;
-  --today-wash: #060606;
+  --separator: rgba(60, 60, 67, 0.29);
+  --separator-opaque: #c6c6c8;
 
-  --urgent: #c2453f;
-  --positive: #4e8c7d;
+  /* Fills, for segmented controls and the search field. */
+  --fill: rgba(118, 118, 128, 0.12);
+  --fill-2: rgba(118, 118, 128, 0.08);
 
-  /* Category rails are identical in both views; labels are not. */
-  --cat-deep-focus: #ffd700;
-  --cat-high-priority-admin: #c2453f;
-  --cat-low-priority-admin: #6e7787;
-  --cat-personal: #4e8c7d;
-  --cat-delegate: #d3af37;
+  /* System colours. Blue is the accent; everything else is semantic. */
+  --blue: #007aff;
+  --red: #ff3b30;
+  --green: #34c759;
+  --orange: #ff9500;
+  --yellow: #ffcc00;
+  --purple: #af52de;
+  --gray: #8e8e93;
 
-  --cat-deep-focus-label: #ffd700;
-  --cat-high-priority-admin-label: #c2453f;
-  --cat-low-priority-admin-label: #6e7787;
-  --cat-personal-label: #4e8c7d;
-  --cat-delegate-label: #d3af37;
+  --chrome: rgba(249, 249, 249, 0.94); /* nav and tab bar over content */
+  --scrim: rgba(0, 0, 0, 0.4);
 
-  --ease-default: cubic-bezier(0.2, 0.7, 0.2, 1);
-  --ease-snap: cubic-bezier(0.9, 0, 0.1, 1);
+  --radius: 10px;
+  --radius-lg: 14px;
+  --radius-sm: 8px;
+
+  /* One category colour each, from the system palette so nothing invented. */
+  --cat-deep-focus: #5856d6; /* systemIndigo */
+  --cat-high-priority-admin: #ff3b30;
+  --cat-low-priority-admin: #8e8e93;
+  --cat-personal: #34c759;
+  --cat-delegate: #ff9500;
 }
 
-[data-theme="light"] {
-  --bg: #f4f4f2;
-  --panel: #ffffff;
-  --panel-inert: #ededea;
-  --hairline: #d8d8d2;
-  --hairline-2: #d8d8d2;
-  --text: #0a0a0a;
-  --text-secondary: #5a5a5a;
-  --text-faded: #a0a0a0;
-  --gold: #ffd700;
-  --card-navy: #0d1a2b;
-  --antique-gold: #d3af37;
+:root[data-theme="dark"] {
+  --bg: #000000;
+  --card: #1c1c1e;
+  --card-nested: #2c2c2e;
 
-  --gold-text: #7a6100;
-  --gold-press: #d4af00;
+  --label: #ffffff;
+  --label-2: rgba(235, 235, 245, 0.6);
+  --label-3: rgba(235, 235, 245, 0.3);
+  --label-4: rgba(235, 235, 245, 0.18);
 
-  --star-fill: #d3af37;
-  --star-empty: #d8d8d2;
-  --grid-line: #d8d8d2;
-  --tab-active: #0a0a0a;
-  --tab-inactive: #a0a0a0;
-  --today-wash: #eeeeea;
+  --separator: rgba(84, 84, 88, 0.65);
+  --separator-opaque: #38383a;
 
-  --urgent: #a3352f;
-  --positive: #2f6a5c;
+  --fill: rgba(118, 118, 128, 0.24);
+  --fill-2: rgba(118, 118, 128, 0.16);
 
-  --cat-deep-focus-label: #7a6100;
-  --cat-high-priority-admin-label: #a3352f;
-  --cat-low-priority-admin-label: #4a5262;
-  --cat-personal-label: #2f6a5c;
-  --cat-delegate-label: #7a5f12;
+  --blue: #0a84ff;
+  --red: #ff453a;
+  --green: #30d158;
+  --orange: #ff9f0a;
+  --yellow: #ffd60a;
+  --purple: #bf5af2;
+  --gray: #8e8e93;
+
+  --chrome: rgba(28, 28, 30, 0.94);
+  --scrim: rgba(0, 0, 0, 0.55);
+
+  --cat-deep-focus: #5e5ce6;
+  --cat-high-priority-admin: #ff453a;
+  --cat-low-priority-admin: #8e8e93;
+  --cat-personal: #30d158;
+  --cat-delegate: #ff9f0a;
 }
 
 @theme inline {
   --color-bg: var(--bg);
-  --color-panel: var(--panel);
-  --color-panel-inert: var(--panel-inert);
-  --color-hairline: var(--hairline);
-  --color-hairline-2: var(--hairline-2);
-  --color-text: var(--text);
-  --color-text-secondary: var(--text-secondary);
-  --color-text-faded: var(--text-faded);
-  --color-gold: var(--gold);
-  --color-gold-text: var(--gold-text);
-  --color-navy: var(--card-navy);
-  --color-antique: var(--antique-gold);
-  --color-urgent: var(--urgent);
-  --color-positive: var(--positive);
-  --color-grid-line: var(--grid-line);
+  --color-card: var(--card);
+  --color-card-nested: var(--card-nested);
+  --color-label: var(--label);
+  --color-label-2: var(--label-2);
+  --color-label-3: var(--label-3);
+  --color-separator: var(--separator);
+  --color-fill: var(--fill);
+  --color-blue: var(--blue);
+  --color-red: var(--red);
+  --color-green: var(--green);
+  --color-orange: var(--orange);
+  --color-gray: var(--gray);
 
-  --font-display: var(--font-bebas), "Bebas Neue", sans-serif;
-  --font-ui: var(--font-rajdhani), "Rajdhani", system-ui, sans-serif;
-  --font-mono: var(--font-roboto-mono), "Roboto Mono", ui-monospace, monospace;
-
-  --radius-card: 2px;
-  --radius-chip: 2px;
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-rounded:
+    ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-/* ------------------------------------------------------------------- base */
+/* -------------------------------------------------------------------- base */
 
 * {
   -webkit-tap-highlight-color: transparent;
@@ -122,208 +118,193 @@ body {
 
 body {
   background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-ui);
-  font-weight: 600;
-  overscroll-behavior-y: none;
+  color: var(--label);
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.29;
+  letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  color: inherit;
 }
 
 button {
-  font-family: inherit;
-  color: inherit;
   text-align: left;
 }
 
-/* Max radius anywhere is 4px, so nothing here needs a rounder default. */
-
-/* ------------------------------------------------------- type components
- * Each of these is one row of the handoff's typography table. Defining them
- * once keeps every screen honest about letter-spacing and casing.
+/* ------------------------------------------------------ the type scale
+ * Apple's text styles, at their default (non-scaled) sizes.
  */
 
 @layer components {
-  .t-screen-title {
-    font-family: var(--font-display);
+  .t-large-title {
     font-size: 34px;
-    line-height: 0.9;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    font-weight: 400;
+    line-height: 1.2;
+    font-weight: 700;
+    letter-spacing: 0.011em;
   }
 
-  .t-screen-title-lg {
-    font-family: var(--font-display);
-    font-size: 40px;
-    line-height: 0.9;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    font-weight: 400;
-  }
-
-  .t-sheet-title {
-    font-family: var(--font-display);
-    font-size: 26px;
-    line-height: 0.98;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    font-weight: 400;
-  }
-
-  .t-numeral {
-    font-family: var(--font-display);
+  .t-title2 {
     font-size: 22px;
-    line-height: 1;
-    font-weight: 400;
-  }
-
-  .t-day {
-    font-family: var(--font-display);
-    font-size: 17px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    font-weight: 400;
-  }
-
-  .t-eyebrow {
-    font-family: var(--font-ui);
+    line-height: 1.27;
     font-weight: 700;
-    font-size: 9px;
-    letter-spacing: 0.25em;
-    text-transform: uppercase;
+    letter-spacing: -0.016em;
   }
 
-  .t-section {
-    font-family: var(--font-ui);
-    font-weight: 700;
-    font-size: 10px;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-  }
-
-  .t-cat {
-    font-family: var(--font-ui);
-    font-weight: 700;
-    font-size: 9px;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-  }
-
-  .t-tab {
-    font-family: var(--font-ui);
-    font-weight: 700;
-    font-size: 9px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-  }
-
-  .t-button {
-    font-family: var(--font-ui);
-    font-weight: 700;
-    font-size: 12px;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-  }
-
-  .t-button-sm {
-    font-family: var(--font-ui);
-    font-weight: 700;
-    font-size: 11px;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-  }
-
-  .t-chip {
-    font-family: var(--font-ui);
-    font-weight: 700;
-    font-size: 10px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-  }
-
-  .t-title {
-    font-family: var(--font-ui);
-    font-weight: 600;
-    font-size: 15px;
+  .t-title3 {
+    font-size: 20px;
     line-height: 1.25;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  .t-headline {
+    font-size: 17px;
+    line-height: 1.29;
+    font-weight: 600;
+    letter-spacing: -0.024em;
   }
 
   .t-body {
-    font-family: var(--font-ui);
-    font-weight: 600;
-    font-size: 14px;
-    line-height: 1.5;
+    font-size: 17px;
+    line-height: 1.29;
+    font-weight: 400;
+    letter-spacing: -0.024em;
   }
 
-  .t-sub {
-    font-family: var(--font-ui);
-    font-weight: 500;
+  .t-callout {
+    font-size: 16px;
+    line-height: 1.31;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+  }
+
+  .t-subhead {
+    font-size: 15px;
+    line-height: 1.33;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+
+  .t-footnote {
+    font-size: 13px;
+    line-height: 1.38;
+    font-weight: 400;
+    letter-spacing: -0.006em;
+  }
+
+  .t-caption {
+    font-size: 12px;
+    line-height: 1.33;
+    font-weight: 400;
+  }
+
+  .t-caption2 {
     font-size: 11px;
-    line-height: 1.4;
+    line-height: 1.18;
+    font-weight: 400;
   }
 
-  .t-meta {
-    font-family: var(--font-mono);
-    font-weight: 500;
-    font-size: 9px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+  /* Numbers that sit in columns — times, counts — should not wobble. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
   }
 
-  .t-meta-11 {
-    font-family: var(--font-mono);
-    font-weight: 500;
-    font-size: 11px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+  /* ---------------------------------------------------------- list groups */
+
+  /* The inset grouped list: one rounded white card holding rows. */
+  .ios-group {
+    background: var(--card);
+    border-radius: var(--radius);
+    overflow: hidden;
   }
 
-  .t-gutter {
-    font-family: var(--font-mono);
-    font-weight: 500;
-    font-size: 10px;
+  /* A row inside a group. The separator is inset from the left, the way
+     UITableView insets it past the row's content, and the last row has none. */
+  .ios-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 44px;
+    padding: 11px 16px;
+    position: relative;
+  }
+
+  .ios-row + .ios-row::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 16px;
+    right: 0;
+    height: 1px;
+    background: var(--separator);
+    transform: scaleY(0.5);
+    transform-origin: top;
+  }
+
+  /* When a row leads with a dot or icon, the separator clears that too. */
+  .ios-row-inset + .ios-row-inset::before {
+    left: 44px;
+  }
+
+  /* The small header above a group. Sentence case, not shouted. */
+  .ios-group-header {
+    padding: 0 16px 7px;
+    color: var(--label-2);
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: -0.006em;
+  }
+
+  .ios-group-footer {
+    padding: 7px 16px 0;
+    color: var(--label-2);
+    font-size: 13px;
+    line-height: 1.38;
+    letter-spacing: -0.006em;
   }
 }
 
-/* ------------------------------------------------------------ interaction */
+/* ------------------------------------------------------------- interaction */
 
-.press {
-  transition: transform 200ms var(--ease-default),
-    background-color 200ms var(--ease-default),
-    border-color 200ms var(--ease-default),
-    opacity 200ms var(--ease-default);
+.pressable {
+  transition: background-color 120ms ease-out, opacity 120ms ease-out;
 }
 
-.press:active {
-  transform: translateY(1px);
+.pressable:active {
+  background-color: var(--fill-2);
 }
 
-.press-gold:active {
-  background-color: var(--gold-press);
+.pressable-solid:active {
+  opacity: 0.75;
 }
 
-/* Elevation is a border shift or a hard edge — never a blurred shadow. */
-.plaque {
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
-/* The dashed rule under a reset gap. */
-.reset-rule {
-  background: repeating-linear-gradient(
-    90deg,
-    var(--hairline) 0 5px,
-    transparent 5px 11px
-  );
+.no-scrollbar {
+  scrollbar-width: none;
 }
 
-.scrim {
-  background: rgba(0, 0, 0, 0.82);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+/* Bars sit over scrolling content the way UIKit's do. */
+.bar-blur {
+  background: var(--chrome);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
 }
 
 .sheet-enter {
-  animation: sheet-in 320ms var(--ease-snap);
+  animation: sheet-in 350ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @keyframes sheet-in {
@@ -335,17 +316,23 @@ button {
   }
 }
 
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
+.fade-enter {
+  animation: fade-in 250ms ease-out;
 }
 
-.no-scrollbar {
-  scrollbar-width: none;
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .press,
-  .sheet-enter {
+  .pressable,
+  .sheet-enter,
+  .fade-enter {
     transition: none;
     animation: none;
   }

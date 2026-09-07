@@ -3,14 +3,16 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { AlertCircle } from "lucide-react";
 import { scheduleMyWeek } from "@/app/actions";
-import { Content, Header, HeaderMetric, StatusBar, TabBar } from "@/components/chrome";
-import { Button, EmptyState, railColor, labelColor, categoryLabel } from "@/components/ui";
+import { ActionBar, Content, Header, TabBar } from "@/components/chrome";
+import { Button, Dot, EmptyState, Group, categoryColor } from "@/components/ui";
+import { CATEGORIES } from "@/lib/domain/categories";
 import {
-  formatClock,
-  formatDuration,
-  formatEyebrowDate,
-  formatRange,
+  WEEKDAY_FULL,
+  formatClock12,
+  formatDayLong,
+  formatRange12,
 } from "@/lib/domain/time";
 import type { Task } from "@/lib/domain/types";
 import type { TodayView, WeekEntry } from "@/lib/view-types";
@@ -18,12 +20,10 @@ import { CloseOutSheet } from "./close-out-sheet";
 
 export function TodayScreen({
   view,
-  clock,
   resetMinutes,
   estimatedBlocks,
 }: {
   view: TodayView;
-  clock: string;
   resetMinutes: number;
   estimatedBlocks: number;
 }) {
@@ -43,105 +43,74 @@ export function TodayScreen({
 
   return (
     <>
-      <StatusBar clock={clock} />
-
       <Header
-        eyebrow={formatEyebrowDate(view.date, view.dayIndex)}
-        title="TODAY"
-        large
+        title="Today"
+        subtitle={formatDayLong(view.date, view.dayIndex)}
         trailing={
-          <HeaderMetric value={String(view.blocksLeft)} label="BLOCKS LEFT" />
+          <div className="text-right">
+            <div className="t-title2 tnum">{view.blocksLeft}</div>
+            <div className="t-caption" style={{ color: "var(--label-2)" }}>
+              {view.blocksLeft === 1 ? "block left" : "blocks left"}
+            </div>
+          </div>
         }
       />
 
-      {view.urgentUnplaced.length > 0 ? (
-        <UrgentStrip
-          task={view.urgentUnplaced[0]}
-          extra={view.urgentUnplaced.length - 1}
-          onPlace={placeIt}
-          pending={pending}
-        />
-      ) : null}
-
       <Content>
-        {rows.length === 0 ? (
-          <EmptyState>
-            Nothing on the calendar today. Run Schedule My Week from the Week screen.
-          </EmptyState>
+        {view.urgentUnplaced.length > 0 ? (
+          <UrgentBanner
+            task={view.urgentUnplaced[0]}
+            extra={view.urgentUnplaced.length - 1}
+            onPlace={placeIt}
+            pending={pending}
+          />
         ) : null}
 
-        {rows.map((row, index) => {
-          if (row.kind === "now") {
-            return (
-              <div key={`now-${index}`} className="flex items-center gap-2 py-2">
-                <span
-                  className="t-cat shrink-0 px-[5px] py-[2px]"
-                  style={{
-                    background: "var(--gold)",
-                    color: "#000",
-                    borderRadius: 1,
-                    letterSpacing: "0.2em",
-                  }}
-                >
-                  NOW {formatClock(view.nowMinutes)}
-                </span>
-                <span
-                  className="h-px flex-1"
-                  style={{ background: "var(--antique-gold)" }}
+        {rows.length === 0 ? (
+          <EmptyState
+            title="Nothing today"
+            detail={
+              view.nextUp
+                ? `Next up: ${view.nextUp.title}, ${
+                    WEEKDAY_FULL[view.nextUp.dayIndex]
+                  } at ${formatClock12(view.nextUp.start, true)}.`
+                : "Run Schedule my week from the Week tab."
+            }
+          />
+        ) : (
+          <Group>
+            {rows.map((row, index) => {
+              if (row.kind === "now") {
+                return <NowMarker key={`now-${index}`} minutes={view.nowMinutes} />;
+              }
+              if (row.kind === "reset") {
+                return <ResetRow key={`reset-${index}`} minutes={row.minutes} />;
+              }
+              return (
+                <TimelineRow
+                  key={`${row.entry.title}-${index}`}
+                  entry={row.entry}
+                  isActive={row.isActive}
                 />
-              </div>
-            );
-          }
-
-          if (row.kind === "reset") {
-            return (
-              <div
-                key={`reset-${index}`}
-                className="flex h-[14px] items-center gap-2 pl-[46px]"
-              >
-                <span className="reset-rule h-px flex-1" aria-hidden="true" />
-                <span
-                  className="t-cat shrink-0 text-text-faded"
-                  style={{ fontSize: 8, letterSpacing: "0.25em" }}
-                >
-                  RESET · {row.minutes}
-                </span>
-              </div>
-            );
-          }
-
-          return (
-            <TimelineRow
-              key={`${row.entry.title}-${index}`}
-              entry={row.entry}
-              isActive={row.isActive}
-            />
-          );
-        })}
-        <div className="h-4" />
+              );
+            })}
+          </Group>
+        )}
       </Content>
 
       {active ? (
-        <div className="flex shrink-0 flex-col gap-[9px] border-t border-hairline px-[22px] py-3">
-          <span className="t-cat text-text-faded" style={{ letterSpacing: "0.22em" }}>
-            {view.activeIsLive ? "CLOSING" : "JUST ENDED"} · {active.title.toUpperCase()} ·{" "}
-            {formatRange(active.start, active.end)}
-          </span>
-          <div className="flex gap-2">
-            <Button
-              tone="gold"
-              label="COMPLETED"
-              className="flex-1"
-              onClick={() => setSheetOpen(true)}
-            />
-            <Button
-              label="MORE TIME"
-              className="flex-1"
-              onClick={() => setSheetOpen(true)}
-            />
-            <Button label="SWAP" className="flex-1" onClick={() => setSheetOpen(true)} />
-          </div>
-        </div>
+        <ActionBar>
+          <p className="t-footnote mb-2 text-center" style={{ color: "var(--label-2)" }}>
+            {view.activeIsLive ? "Closing" : "Just ended"} · {active.title} ·{" "}
+            {formatRange12(active.start, active.end)}
+          </p>
+          <Button
+            label="Close out this block"
+            kind="filled"
+            full
+            onClick={() => setSheetOpen(true)}
+          />
+        </ActionBar>
       ) : null}
 
       <TabBar />
@@ -161,8 +130,8 @@ export function TodayScreen({
   );
 }
 
-/** Only for urgent tasks that are not yet placed. Otherwise not rendered. */
-function UrgentStrip({
+/** Only rendered for urgent tasks with nowhere on the calendar yet. */
+function UrgentBanner({
   task,
   extra,
   onPlace,
@@ -174,145 +143,157 @@ function UrgentStrip({
   pending: boolean;
 }) {
   return (
-    <div className="mx-[22px] mb-3.5 flex shrink-0 items-center gap-2.5 overflow-hidden rounded-[2px] border border-hairline bg-panel">
-      <span
-        aria-hidden="true"
-        className="w-[3px] shrink-0 self-stretch"
-        style={{ background: "#C2453F" }}
-      />
-      <div className="flex min-w-0 flex-1 items-center gap-2.5 py-[9px] pr-3">
-        <span
-          className="t-cat shrink-0"
-          style={{ color: "var(--urgent)", letterSpacing: "0.22em" }}
-        >
-          URGENT · UNPLACED
+    <div
+      className="mb-6 flex items-center gap-3 rounded-[10px] px-4 py-3"
+      style={{ background: "color-mix(in srgb, var(--red) 12%, transparent)" }}
+    >
+      <AlertCircle size={20} strokeWidth={2} style={{ color: "var(--red)" }} className="shrink-0" />
+      <span className="min-w-0 flex-1">
+        <span className="t-subhead block" style={{ color: "var(--red)", fontWeight: 600 }}>
+          Urgent, not placed
         </span>
-        <span className="t-title min-w-0 flex-1 truncate" style={{ fontSize: 13 }}>
+        <span className="t-subhead block truncate" style={{ color: "var(--label)" }}>
           {task.title}
-          {extra > 0 ? (
-            <span className="text-text-faded"> +{extra}</span>
-          ) : null}
+          {extra > 0 ? <span style={{ color: "var(--label-2)" }}> +{extra} more</span> : null}
         </span>
-        <button
-          type="button"
-          onClick={onPlace}
-          disabled={pending}
-          className="press t-cat shrink-0 disabled:opacity-40"
-          style={{ color: "var(--gold-text)", letterSpacing: "0.16em" }}
-        >
-          {pending ? "…" : "PLACE IT"}
-        </button>
-      </div>
+      </span>
+      <button
+        type="button"
+        onClick={onPlace}
+        disabled={pending}
+        className="pressable-solid t-subhead shrink-0 rounded-full px-3 py-1.5 disabled:opacity-40"
+        style={{ background: "var(--red)", color: "#fff", fontWeight: 600 }}
+      >
+        {pending ? "…" : "Place"}
+      </button>
+    </div>
+  );
+}
+
+function NowMarker({ minutes }: { minutes: number }) {
+  return (
+    <div className="ios-row" style={{ minHeight: 0, paddingTop: 6, paddingBottom: 6 }}>
+      <span
+        className="t-caption2 tnum w-[52px] shrink-0 text-right"
+        style={{ color: "var(--red)", fontWeight: 600 }}
+      >
+        {formatClock12(minutes)}
+      </span>
+      <span className="flex flex-1 items-center gap-1.5">
+        <span
+          className="h-[7px] w-[7px] shrink-0 rounded-full"
+          style={{ background: "var(--red)" }}
+        />
+        <span className="h-[1.5px] flex-1" style={{ background: "var(--red)" }} />
+      </span>
+    </div>
+  );
+}
+
+function ResetRow({ minutes }: { minutes: number }) {
+  return (
+    <div className="ios-row" style={{ minHeight: 0, paddingTop: 5, paddingBottom: 5 }}>
+      <span className="w-[52px] shrink-0" />
+      <span className="t-caption flex-1" style={{ color: "var(--label-3)" }}>
+        {minutes} min reset
+      </span>
     </div>
   );
 }
 
 function TimelineRow({ entry, isActive }: { entry: WeekEntry; isActive: boolean }) {
-  const minutes = entry.end - entry.start;
+  const locked = entry.locked;
 
-  const card = (
-    <div
-      className="min-w-0 flex-1 rounded-[2px] px-3 py-[9px]"
-      style={{
-        background: isActive
-          ? "var(--card-navy)"
-          : entry.locked
-            ? "var(--panel-inert)"
-            : "var(--panel)",
-        border: entry.locked
-          ? "1px dashed var(--hairline)"
-          : `1px solid ${isActive ? "var(--antique-gold)" : "var(--hairline)"}`,
-        borderLeft:
-          !entry.locked && entry.category
-            ? `3px solid ${railColor(entry.category)}`
-            : undefined,
-      }}
-    >
-      <div className="mb-1.5 flex items-center justify-between gap-3">
+  const body = (
+    <>
+      <span
+        className="t-footnote tnum w-[52px] shrink-0 pt-[2px] text-right"
+        style={{ color: isActive ? "var(--blue)" : "var(--label-2)" }}
+      >
+        {formatClock12(entry.start)}
+      </span>
+
+      {entry.category ? (
+        <Dot color={categoryColor(entry.category)} />
+      ) : (
         <span
-          className="t-cat min-w-0 truncate"
+          aria-hidden="true"
+          className="h-[10px] w-[10px] shrink-0 rounded-full"
+          style={{ border: "1.5px dashed var(--label-3)" }}
+        />
+      )}
+
+      <span className="min-w-0 flex-1">
+        <span
+          className="t-body block truncate"
           style={{
-            color: entry.locked
-              ? "var(--text-faded)"
-              : entry.category
-                ? labelColor(entry.category)
-                : "var(--text-faded)",
+            color: locked ? "var(--label-2)" : "var(--label)",
+            fontWeight: isActive ? 600 : 400,
+            textDecoration: entry.done ? "line-through" : undefined,
           }}
         >
-          {entry.locked
-            ? "LOCKED · CALENDAR"
-            : entry.category
-              ? categoryLabel(entry.category)
-              : "BLOCK"}
+          {entry.title}
         </span>
+        <span className="t-footnote block truncate" style={{ color: "var(--label-2)" }}>
+          {locked
+            ? `Calendar · ${formatRange12(entry.start, entry.end)}`
+            : [
+                entry.category ? sentence(CATEGORIES[entry.category].label) : null,
+                formatRange12(entry.start, entry.end),
+                entry.location === "gym" ? "Gym" : entry.location === "home" ? "Home" : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+        </span>
+      </span>
+
+      {isActive ? (
         <span
-          className="t-meta shrink-0"
-          style={{ color: isActive ? "var(--antique-gold)" : "var(--text-faded)" }}
+          className="t-caption2 shrink-0 rounded-full px-2 py-[3px]"
+          style={{ background: "var(--blue)", color: "#fff", fontWeight: 600 }}
         >
-          {isActive ? "ACTIVE" : formatDuration(minutes)}
+          Now
         </span>
-      </div>
-      <div
-        className="t-title"
-        style={{
-          fontSize: isActive ? 16 : 14,
-          color: isActive ? "#FFFFFF" : entry.locked ? "var(--text-faded)" : "var(--text)",
-          textDecoration: entry.done ? "line-through" : undefined,
-          textDecorationColor: "var(--text-faded)",
-        }}
-      >
-        {entry.title}
-      </div>
-      {!entry.locked ? (
-        <div
-          className="t-meta mt-1.5"
-          style={{ color: isActive ? "rgba(255,255,255,0.6)" : "var(--text-secondary)" }}
-        >
-          {formatRange(entry.start, entry.end)}
-          {entry.location ? ` · ${entry.location.toUpperCase()}` : ""}
-          {entry.done ? " · DONE" : ""}
-        </div>
       ) : null}
-    </div>
+    </>
   );
 
+  const style = isActive
+    ? { background: "color-mix(in srgb, var(--blue) 8%, transparent)" }
+    : undefined;
+
+  if (locked || !entry.taskId) {
+    return (
+      <div className="ios-row ios-row-inset" style={style}>
+        {body}
+      </div>
+    );
+  }
+
   return (
-    <div className="mb-1.5 flex gap-2.5">
-      <span
-        className="t-gutter w-9 shrink-0 pt-[10px] text-right"
-        style={{ color: isActive ? "var(--gold-text)" : "var(--text-faded)" }}
-      >
-        {formatClock(entry.start)}
-      </span>
-      {entry.locked || !entry.taskId ? (
-        card
-      ) : (
-        <Link href={`/tasks/${entry.taskId}`} className="press flex min-w-0 flex-1">
-          {card}
-        </Link>
-      )}
-    </div>
+    <Link href={`/tasks/${entry.taskId}`} className="ios-row ios-row-inset pressable" style={style}>
+      {body}
+    </Link>
   );
 }
 
-/* ------------------------------------------------------------------- rows */
+function sentence(value: string): string {
+  return value.charAt(0) + value.slice(1).toLowerCase();
+}
+
+/* -------------------------------------------------------------------- rows */
 
 type Row =
   | { kind: "entry"; entry: WeekEntry; isActive: boolean }
   | { kind: "reset"; minutes: number }
   | { kind: "now" };
 
-/**
- * Weave the now marker and the reset gaps into the timeline. Resets come from
- * the stored blocks, so they land exactly where the scheduler put them.
- */
+/** Weave the now marker and the stored reset gaps into the timeline. */
 function buildRows(view: TodayView, resetMinutes: number): Row[] {
   const rows: Row[] = [];
   let nowPlaced = false;
 
-  const ordered = [...view.entries].sort((a, b) => a.start - b.start);
-
-  for (const entry of ordered) {
+  for (const entry of [...view.entries].sort((a, b) => a.start - b.start)) {
     if (!nowPlaced && entry.start > view.nowMinutes) {
       rows.push({ kind: "now" });
       nowPlaced = true;
@@ -333,7 +314,7 @@ function buildRows(view: TodayView, resetMinutes: number): Row[] {
     });
   }
 
-  if (!nowPlaced && ordered.length > 0) rows.push({ kind: "now" });
+  if (!nowPlaced && rows.length > 0) rows.push({ kind: "now" });
 
   return rows;
 }

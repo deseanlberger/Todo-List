@@ -2,42 +2,40 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Check, Minus, Plus } from "lucide-react";
 import { closeOutBlock } from "@/app/actions";
 import { CompactTaskRow } from "@/components/task-row";
-import { PrimaryButton } from "@/components/ui";
-import { formatRange } from "@/lib/domain/time";
+import { Button, Group, Row } from "@/components/ui";
+import { formatRange12 } from "@/lib/domain/time";
 import type { Task } from "@/lib/domain/types";
 
 type Choice = "completed" | "unfinished" | "swap";
 
-const OPTIONS: { value: Choice; label: string; sub: string; marker: string }[] = [
+const OPTIONS: { value: Choice; label: string; detail: string }[] = [
   {
     value: "completed",
-    label: "COMPLETED",
-    sub: "Records 1 block actual. Feeds the estimator.",
-    marker: "EST 1 / ACT 1",
+    label: "Completed",
+    detail: "Records the actual blocks used and feeds the estimator.",
   },
   {
     value: "unfinished",
-    label: "UNFINISHED",
-    sub: "Back to backlog at a reduced estimate.",
-    marker: "+ TIME",
+    label: "Needs more time",
+    detail: "Back to the backlog at a reduced estimate.",
   },
   {
     value: "swap",
-    label: "SWAP",
-    sub: "Another task takes this block.",
-    marker: "PICK",
+    label: "Swap",
+    detail: "Another task takes this block.",
   },
 ];
 
-const CONFIRM_LABEL: Record<Choice, string> = {
-  completed: "CLOSE BLOCK",
-  unfinished: "RETURN TO BACKLOG",
-  swap: "CONFIRM SWAP",
+const CONFIRM: Record<Choice, string> = {
+  completed: "Close block",
+  unfinished: "Return to backlog",
+  swap: "Confirm swap",
 };
 
-/** §13. Three outcomes, no partial credit. */
+/** Three outcomes, no partial credit. */
 export function CloseOutSheet({
   taskId,
   title,
@@ -81,159 +79,114 @@ export function CloseOutSheet({
         type="button"
         aria-label="Dismiss"
         onClick={onDismiss}
-        className="scrim absolute inset-0"
+        className="fade-enter absolute inset-0"
+        style={{ background: "var(--scrim)" }}
       />
 
       <div
         role="dialog"
         aria-modal="true"
         aria-label={`Close out ${title}`}
-        className="sheet-enter no-scrollbar relative max-h-[88%] overflow-y-auto px-[22px] pt-5 pb-[26px]"
-        style={{ background: "var(--panel)", borderTop: "2px solid var(--gold)" }}
+        className="sheet-enter no-scrollbar relative max-h-[88%] overflow-y-auto px-4 pb-8"
+        style={{
+          background: "var(--bg)",
+          borderTopLeftRadius: 14,
+          borderTopRightRadius: 14,
+        }}
       >
-        <div className="mb-4">
-          <div className="t-eyebrow mb-2 text-text-faded">
-            {`BLOCK ENDING · ${formatRange(start, end)} · EST ${estimatedBlocks} ${
-              estimatedBlocks === 1 ? "BLOCK" : "BLOCKS"
-            }`}
-          </div>
-          <h2 className="t-sheet-title">{title}</h2>
+        <div className="sticky top-0 z-10 pt-2 pb-3" style={{ background: "var(--bg)" }}>
+          <div
+            className="mx-auto mb-4 h-[5px] w-9 rounded-full"
+            style={{ background: "var(--label-4)" }}
+            aria-hidden="true"
+          />
+          <h2 className="t-title3">{title}</h2>
+          <p className="t-footnote mt-0.5" style={{ color: "var(--label-2)" }}>
+            {formatRange12(start, end)} · estimated {estimatedBlocks}{" "}
+            {estimatedBlocks === 1 ? "block" : "blocks"}
+          </p>
         </div>
 
-        <div className="mb-4 flex flex-col gap-2">
+        <Group>
           {OPTIONS.map((option) => {
             const selected = choice === option.value;
             return (
-              <div key={option.value}>
-                <button
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => setChoice(option.value)}
-                  className="press flex w-full items-center gap-3 rounded-[2px] px-[14px] py-[13px]"
-                  style={{
-                    background: selected ? "var(--card-navy)" : "var(--bg)",
-                    border: `1px solid ${selected ? "var(--antique-gold)" : "var(--hairline)"}`,
-                  }}
-                >
-                  <span className="min-w-0 flex-1">
-                    <span
-                      className="t-button-sm block"
-                      style={{
-                        fontSize: 12,
-                        letterSpacing: "0.18em",
-                        color: selected ? "#FFFFFF" : "var(--text-secondary)",
-                      }}
-                    >
-                      {option.label}
-                    </span>
-                    <span
-                      className="t-sub mt-1 block"
-                      style={{ color: selected ? "rgba(255,255,255,0.65)" : "var(--text-secondary)" }}
-                    >
-                      {option.sub}
-                    </span>
+              <Row key={option.value} onClick={() => setChoice(option.value)}>
+                <span className="min-w-0 flex-1">
+                  <span className="t-body block" style={{ fontWeight: selected ? 600 : 400 }}>
+                    {option.label}
                   </span>
-                  <span
-                    className="t-meta shrink-0"
-                    style={{ color: selected ? "var(--antique-gold)" : "var(--text-faded)" }}
-                  >
-                    {option.value === "completed"
-                      ? `EST ${estimatedBlocks} / ACT ${estimatedBlocks}`
-                      : option.marker}
+                  <span className="t-footnote block" style={{ color: "var(--label-2)" }}>
+                    {option.detail}
                   </span>
-                </button>
-
-                {selected && option.value === "unfinished" ? (
-                  <div
-                    className="mt-2 rounded-[2px] p-[14px]"
-                    style={{
-                      background: "var(--card-navy)",
-                      border: "1px solid var(--antique-gold)",
-                    }}
-                  >
-                    <div className="t-eyebrow mb-3" style={{ color: "rgba(255,255,255,0.6)" }}>
-                      HOW MUCH MORE TIME?
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <button
-                        type="button"
-                        aria-label="Less time"
-                        onClick={() => setMoreBlocks((value) => Math.max(1, value - 1))}
-                        className="press flex h-10 w-10 items-center justify-center rounded-[2px]"
-                        style={{ border: "1px solid rgba(255,255,255,0.25)", color: "#FFFFFF" }}
-                      >
-                        –
-                      </button>
-                      <div className="flex-1 text-center">
-                        <div
-                          style={{
-                            fontFamily: "var(--font-display)",
-                            fontSize: 30,
-                            lineHeight: 1,
-                            color: "#FFFFFF",
-                          }}
-                        >
-                          {moreBlocks}
-                        </div>
-                        <div className="t-meta mt-1" style={{ color: "rgba(255,255,255,0.55)" }}>
-                          {moreBlocks * 30} MIN
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="More time"
-                        onClick={() => setMoreBlocks((value) => Math.min(4, value + 1))}
-                        className="press flex h-10 w-10 items-center justify-center rounded-[2px]"
-                        style={{ border: "1px solid var(--gold)", color: "var(--gold)" }}
-                      >
-                        +
-                      </button>
-                    </div>
-                    <p className="t-sub mt-3" style={{ color: "rgba(255,255,255,0.65)" }}>
-                      Returns to the backlog at the reduced estimate and gets re-placed on
-                      the next run.
-                    </p>
-                  </div>
+                </span>
+                {selected ? (
+                  <Check size={20} strokeWidth={2.5} style={{ color: "var(--blue)" }} />
                 ) : null}
-
-                {selected && option.value === "swap" ? (
-                  <div
-                    className="mt-2 rounded-[2px] p-[14px]"
-                    style={{
-                      background: "var(--card-navy)",
-                      border: "1px solid var(--antique-gold)",
-                    }}
-                  >
-                    <div className="t-eyebrow mb-3" style={{ color: "rgba(255,255,255,0.6)" }}>
-                      WHAT TAKES THE BLOCK?
-                    </div>
-                    <div className="max-h-[180px] overflow-y-auto">
-                      {candidates
-                        .filter((candidate) => candidate.id !== taskId)
-                        .map((candidate) => (
-                          <CompactTaskRow
-                            key={candidate.id}
-                            task={candidate}
-                            selected={swapId === candidate.id}
-                            right={`${candidate.estimatedBlocks} BLK`}
-                            onClick={() => setSwapId(candidate.id)}
-                          />
-                        ))}
-                    </div>
-                    <p className="t-sub mt-2" style={{ color: "rgba(255,255,255,0.65)" }}>
-                      {title} goes back to the backlog untouched.
-                    </p>
-                  </div>
-                ) : null}
-              </div>
+              </Row>
             );
           })}
-        </div>
+        </Group>
 
-        <PrimaryButton
-          label={choice ? CONFIRM_LABEL[choice] : "PICK AN OUTCOME"}
-          disabled={!choice || (choice === "swap" && !swapId)}
-          pending={pending}
+        {choice === "unfinished" ? (
+          <Group
+            header="How much more time?"
+            footer="Returns to the backlog at the reduced estimate and gets re-placed on the next run."
+          >
+            <Row>
+              <button
+                type="button"
+                aria-label="Less time"
+                onClick={() => setMoreBlocks((value) => Math.max(1, value - 1))}
+                className="pressable flex h-9 w-9 items-center justify-center rounded-full"
+                style={{ background: "var(--fill)", color: "var(--blue)" }}
+              >
+                <Minus size={18} strokeWidth={2.5} />
+              </button>
+              <span className="flex-1 text-center">
+                <span className="t-title2 tnum block">{moreBlocks}</span>
+                <span className="t-footnote block" style={{ color: "var(--label-2)" }}>
+                  {moreBlocks * 30} minutes
+                </span>
+              </span>
+              <button
+                type="button"
+                aria-label="More time"
+                onClick={() => setMoreBlocks((value) => Math.min(4, value + 1))}
+                className="pressable flex h-9 w-9 items-center justify-center rounded-full"
+                style={{ background: "var(--fill)", color: "var(--blue)" }}
+              >
+                <Plus size={18} strokeWidth={2.5} />
+              </button>
+            </Row>
+          </Group>
+        ) : null}
+
+        {choice === "swap" ? (
+          <Group
+            header="What takes the block?"
+            footer={`${title} goes back to the backlog untouched.`}
+          >
+            {candidates
+              .filter((candidate) => candidate.id !== taskId)
+              .slice(0, 12)
+              .map((candidate) => (
+                <CompactTaskRow
+                  key={candidate.id}
+                  task={candidate}
+                  selected={swapId === candidate.id}
+                  right={`${candidate.estimatedBlocks} blk`}
+                  onClick={() => setSwapId(candidate.id)}
+                />
+              ))}
+          </Group>
+        ) : null}
+
+        <Button
+          label={pending ? "Saving…" : choice ? CONFIRM[choice] : "Pick an outcome"}
+          kind="filled"
+          full
+          disabled={!choice || pending || (choice === "swap" && !swapId)}
           onClick={confirm}
         />
       </div>

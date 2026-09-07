@@ -2,20 +2,18 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Minus, Plus, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, Minus, Plus, X } from "lucide-react";
 import { approveSchedule, discardSchedule } from "@/app/actions";
-import { ActionBar, Content, StatusBar } from "@/components/chrome";
-import { Button, EmptyState, SectionLabel, railColor } from "@/components/ui";
-import type { SentencePart } from "@/lib/scheduler";
-import type { ScheduleDiff } from "@/lib/scheduler";
+import { ActionBar, Content, IconButton } from "@/components/chrome";
+import { Button, Dot, EmptyState, Group, categoryColor } from "@/components/ui";
+import type { ScheduleDiff, SentencePart } from "@/lib/scheduler";
+import type { TaskCategory } from "@/lib/domain/types";
 
 export function ReviewScreen({
   diff,
-  clock,
   calendarKind,
 }: {
   diff: ScheduleDiff | null;
-  clock: string;
   calendarKind: "google" | "stub";
 }) {
   const router = useRouter();
@@ -25,21 +23,12 @@ export function ReviewScreen({
   if (!diff) {
     return (
       <>
-        <StatusBar clock={clock} />
-        <Content>
-          <div className="pt-16">
-            <EmptyState>
-              Nothing is waiting for approval. Run Schedule My Week from the Week
-              screen first.
-            </EmptyState>
-            <div className="mt-3">
-              <Button
-                label="BACK TO THE WEEK"
-                onClick={() => router.push("/week")}
-                className="w-full"
-              />
-            </div>
-          </div>
+        <Content className="pt-4">
+          <EmptyState
+            title="Nothing to review"
+            detail="Run Schedule my week from the Week tab first."
+          />
+          <Button label="Back to the week" full onClick={() => router.push("/week")} />
         </Content>
       </>
     );
@@ -66,222 +55,177 @@ export function ReviewScreen({
 
   return (
     <>
-      <StatusBar clock={clock} />
-
-      <header className="flex shrink-0 items-start justify-between px-[22px] pt-1.5 pb-3.5">
+      <header className="flex shrink-0 items-start justify-between px-4 pt-2 pb-2">
         <div>
-          <div className="t-eyebrow mb-1.5" style={{ color: "var(--text-secondary)" }}>
-            NOTHING WRITTEN YET
-          </div>
-          <h1 className="t-screen-title" style={{ fontSize: 30 }}>
-            {diff.totalChanges} {diff.totalChanges === 1 ? "CHANGE" : "CHANGES"}
+          <h1 className="t-large-title">
+            {diff.totalChanges} {diff.totalChanges === 1 ? "change" : "changes"}
           </h1>
+          <p className="t-subhead mt-0.5" style={{ color: "var(--label-2)" }}>
+            Nothing is written yet
+          </p>
         </div>
-        <button
-          type="button"
-          aria-label="Close without writing"
-          onClick={() => router.push("/week")}
-          className="press -mr-2 flex h-11 w-11 items-center justify-center text-text-secondary"
-        >
-          <X size={20} strokeWidth={1.5} />
-        </button>
+        <div className="-mr-2">
+          <IconButton label="Close without writing" onClick={() => router.push("/week")}>
+            <X size={24} strokeWidth={2.2} />
+          </IconButton>
+        </div>
       </header>
 
       <Content>
         {diff.conflicts.map((conflict) => (
           <div
             key={conflict.taskId}
-            className="mb-4 flex flex-col gap-[9px] rounded-[2px] p-3"
-            style={{
-              background: "var(--card-navy)",
-              border: "1px solid var(--antique-gold)",
-            }}
+            className="mb-6 rounded-[10px] p-4"
+            style={{ background: "color-mix(in srgb, var(--orange) 12%, transparent)" }}
           >
-            <div className="t-cat" style={{ color: "#C2453F", letterSpacing: "0.22em" }}>
-              CONFLICT · {diff.conflicts.length} URGENT{" "}
-              {diff.conflicts.length === 1 ? "ITEM HAS" : "ITEMS HAVE"} NOWHERE TO GO
+            <div className="mb-2 flex items-center gap-2">
+              <AlertTriangle size={18} strokeWidth={2} style={{ color: "var(--orange)" }} />
+              <span className="t-subhead" style={{ color: "var(--orange)", fontWeight: 600 }}>
+                Urgent item has nowhere to go
+              </span>
             </div>
-            <p className="t-body" style={{ fontSize: 15, lineHeight: 1.45, color: "#FFFFFF" }}>
-              <Sentence parts={conflict.sentence} emphasisColor="var(--antique-gold)" />
+            <p className="t-callout" style={{ color: "var(--label)" }}>
+              <Sentence parts={conflict.sentence} />
             </p>
-            <div className="flex gap-2">
+            <div className="mt-3 flex gap-2">
               <Button
-                tone="antique"
-                label="BUMP IT"
+                label="Open the task"
+                kind="tinted"
+                tint="var(--orange)"
                 className="flex-1"
                 onClick={() => router.push(`/tasks/${conflict.taskId}`)}
               />
-              <Button
-                tone="hairline"
-                label="LEAVE AS IS"
-                className="flex-1"
-                style={{ color: "rgba(255,255,255,0.7)", borderColor: "rgba(255,255,255,0.25)" }}
-              />
+              <Button label="Leave as is" kind="gray" className="flex-1" />
             </div>
           </div>
         ))}
 
         {diff.moves.length > 0 ? (
-          <>
-            <SectionLabel label={`MOVES · ${diff.moves.length}`} />
+          <Group header={`Moves · ${diff.moves.length}`}>
             {diff.moves.map((move) => (
-              <DiffCard
+              <DiffRow
                 key={move.taskId}
-                icon={<ArrowRight size={16} strokeWidth={1.5} />}
-                iconColor="var(--gold-text)"
+                icon={<ArrowRight size={16} strokeWidth={2.5} />}
+                tint="var(--blue)"
                 parts={move.sentence}
               />
             ))}
-          </>
+          </Group>
         ) : null}
 
         {diff.placements.length > 0 ? (
-          <>
-            <SectionLabel label={`NEW PLACEMENTS · ${diff.placements.length}`} />
+          <Group header={`New placements · ${diff.placements.length}`}>
             {diff.placements.map((placement) => (
-              <DiffCard
+              <DiffRow
                 key={placement.taskId}
-                icon={<Plus size={16} strokeWidth={1.5} />}
-                iconColor="var(--positive)"
+                icon={<Plus size={16} strokeWidth={2.5} />}
+                tint="var(--green)"
                 parts={placement.sentence}
               />
             ))}
-          </>
+          </Group>
         ) : null}
 
         {diff.removals.length > 0 ? (
-          <>
-            <SectionLabel label={`CLEARING · ${diff.removals.length}`} color="var(--urgent)" />
+          <Group header={`Clearing · ${diff.removals.length}`}>
             {diff.removals.map((removal) => (
-              <DiffCard
+              <DiffRow
                 key={removal.taskId}
-                icon={<Minus size={16} strokeWidth={1.5} />}
-                iconColor="var(--urgent)"
+                icon={<Minus size={16} strokeWidth={2.5} />}
+                tint="var(--red)"
                 parts={removal.sentence}
               />
             ))}
-          </>
+          </Group>
         ) : null}
 
         {diff.didntFit.length > 0 ? (
-          <>
-            <SectionLabel
-              label={`DIDN'T FIT · ${diff.didntFit.length}`}
-              color="var(--urgent)"
-            />
+          <Group header={`Didn't fit · ${diff.didntFit.length}`}>
             {diff.didntFit.map((task) => (
-              <div
-                key={task.taskId}
-                className="mb-1.5 flex overflow-hidden rounded-[2px] border border-hairline bg-panel"
-              >
-                <span
-                  aria-hidden="true"
-                  className="w-[3px] shrink-0"
-                  style={{ background: railColor(task.category as never) }}
-                />
-                <span className="flex min-w-0 flex-1 items-center justify-between gap-3 px-[11px] py-[9px]">
-                  <span className="t-title min-w-0 flex-1 truncate" style={{ fontSize: 14 }}>
-                    {task.title}
-                  </span>
-                  <span className="t-meta shrink-0 text-text-faded">{task.blocks} BLK</span>
+              <div key={task.taskId} className="ios-row ios-row-inset">
+                <Dot color={categoryColor(task.category as TaskCategory)} />
+                <span className="t-body min-w-0 flex-1 truncate">{task.title}</span>
+                <span className="t-subhead tnum shrink-0" style={{ color: "var(--label-2)" }}>
+                  {task.blocks} blk
                 </span>
               </div>
             ))}
-          </>
+          </Group>
         ) : null}
 
         {diff.totalChanges === 0 && diff.conflicts.length === 0 ? (
-          <EmptyState>
-            The week already matches the plan. Nothing to write.
-          </EmptyState>
+          <EmptyState title="Already up to date" detail="The week matches the plan." />
         ) : null}
 
         {diff.recurringPlacedCount > 0 ? (
-          <p
-            className="t-meta mt-4 border border-dashed border-hairline px-3 py-2.5 text-text-faded"
-            style={{ lineHeight: 1.6 }}
-          >
-            {diff.recurringPlacedCount} RECURRING{" "}
-            {diff.recurringPlacedCount === 1 ? "TASK" : "TASKS"} PLACED FIRST — NOT
-            LISTED, NEVER MOVED.
+          <p className="t-footnote mb-3 px-4" style={{ color: "var(--label-2)" }}>
+            {diff.recurringPlacedCount} recurring{" "}
+            {diff.recurringPlacedCount === 1 ? "task is" : "tasks are"} placed first and never
+            moved, so they aren&rsquo;t listed here.
           </p>
         ) : null}
 
         {calendarKind === "stub" ? (
-          <p className="t-meta mt-3 text-text-faded" style={{ lineHeight: 1.6 }}>
-            NO GOOGLE CALENDAR CONNECTED · APPROVING SAVES THE WEEK LOCALLY ONLY
+          <p className="t-footnote px-4" style={{ color: "var(--label-2)" }}>
+            No Google Calendar connected. Approving saves the week here only.
           </p>
         ) : null}
 
         {error ? (
-          <p className="t-meta mt-3" style={{ color: "var(--urgent)" }}>
-            {error.toUpperCase()}
+          <p className="t-footnote mt-3 px-4" style={{ color: "var(--red)" }}>
+            {error}
           </p>
         ) : null}
-
-        <div className="h-4" />
       </Content>
 
       <ActionBar>
         <div className="flex gap-2">
+          <Button label="Discard" kind="gray" onClick={discard} disabled={pending} className="flex-1" />
           <Button
-            tone="hairline"
-            label="DISCARD"
-            onClick={discard}
-            disabled={pending}
-            className="flex-1"
-          />
-          <button
-            type="button"
+            label={
+              pending
+                ? "Writing…"
+                : `Write ${diff.totalChanges} ${diff.totalChanges === 1 ? "change" : "changes"}`
+            }
+            kind="filled"
             onClick={approve}
             disabled={pending || diff.totalChanges === 0}
-            className="press press-gold t-button-sm rounded-[2px] py-[11px] text-center disabled:opacity-40"
-            style={{ flex: 1.6, background: "var(--gold)", color: "#000" }}
-          >
-            {pending
-              ? "WRITING…"
-              : `WRITE ${diff.totalChanges} ${diff.totalChanges === 1 ? "CHANGE" : "CHANGES"}`}
-          </button>
+            style={{ flex: 1.6 }}
+          />
         </div>
       </ActionBar>
     </>
   );
 }
 
-function DiffCard({
+function DiffRow({
   icon,
-  iconColor,
+  tint,
   parts,
 }: {
   icon: React.ReactNode;
-  iconColor: string;
+  tint: string;
   parts: SentencePart[];
 }) {
   return (
-    <div className="mb-1.5 flex gap-[11px] rounded-[2px] border border-hairline bg-panel px-3 py-[11px]">
-      <span className="mt-[2px] shrink-0" style={{ color: iconColor }} aria-hidden="true">
+    <div className="ios-row ios-row-inset" style={{ alignItems: "flex-start" }}>
+      <span className="mt-[3px] shrink-0" style={{ color: tint }} aria-hidden="true">
         {icon}
       </span>
-      <p className="t-body min-w-0 flex-1 text-text-secondary">
+      <p className="t-subhead min-w-0 flex-1" style={{ color: "var(--label-2)" }}>
         <Sentence parts={parts} />
       </p>
     </div>
   );
 }
 
-/** Task names render in the primary text colour inside a secondary sentence. */
-function Sentence({
-  parts,
-  emphasisColor = "var(--text)",
-}: {
-  parts: SentencePart[];
-  emphasisColor?: string;
-}) {
+/** Task names render in the primary label colour inside a quieter sentence. */
+function Sentence({ parts }: { parts: SentencePart[] }) {
   return (
     <>
       {parts.map((part, index) =>
         part.emphasis ? (
-          <span key={index} style={{ color: emphasisColor }}>
+          <span key={index} style={{ color: "var(--label)", fontWeight: 600 }}>
             {part.text}
           </span>
         ) : (
