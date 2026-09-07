@@ -3,7 +3,9 @@ import { repository } from "@/lib/data";
 import { Content } from "@/components/chrome";
 import { Group, Row, RowValue } from "@/components/ui";
 import { parseClock } from "@/lib/domain/time";
+import { passcodeIsConfigured, passcodeIsWeak, MIN_PASSCODE_LENGTH } from "@/lib/auth";
 import { AppearanceRow } from "./appearance-row";
+import { LockRow } from "./lock-row";
 import { SettingsChrome } from "./settings-chrome";
 
 export const dynamic = "force-dynamic";
@@ -60,6 +62,24 @@ export default async function SettingsPage() {
         </Group>
 
         <AppearanceRow initialTheme={settings.theme} />
+
+        <Group
+          footer={
+            passcodeIsConfigured()
+              ? passcodeIsWeak()
+                ? `Your passcode is under ${MIN_PASSCODE_LENGTH} characters. It works, but it is short enough to guess. Change APP_PASSCODE to something longer.`
+                : "You will need the passcode again on this device."
+              : "Anyone with this link can read and change everything. Set APP_PASSCODE to lock it."
+          }
+        >
+          <Row>
+            <span className="t-body flex-1">Passcode</span>
+            <RowValue>
+              {passcodeIsConfigured() ? (passcodeIsWeak() ? "Set, but weak" : "On") : "Off"}
+            </RowValue>
+          </Row>
+          {passcodeIsConfigured() ? <LockRow /> : null}
+        </Group>
 
         <Group footer="Nothing is written to the calendar without an approved diff.">
           {facts.map(([label, value]) => (

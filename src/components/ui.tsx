@@ -147,6 +147,8 @@ export function Button({
   full = false,
   className = "",
   style,
+  /** "submit" when the button is the one that sends a form. */
+  type = "button",
 }: {
   label: string;
   onClick?: () => void;
@@ -156,6 +158,7 @@ export function Button({
   full?: boolean;
   className?: string;
   style?: CSSProperties;
+  type?: "button" | "submit";
 }) {
   const base =
     "pressable-solid t-headline flex items-center justify-center rounded-[12px] px-4 py-[14px] text-center disabled:opacity-40";
@@ -169,7 +172,7 @@ export function Button({
 
   return (
     <button
-      type="button"
+      type={type}
       onClick={onClick}
       disabled={disabled}
       className={`${base} ${full ? "w-full" : ""} ${className}`}
