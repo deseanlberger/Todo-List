@@ -2,6 +2,7 @@ import "server-only";
 import { google } from "googleapis";
 import { DEMO_CALENDAR } from "@/lib/data/seed";
 import { DEFAULT_TIME_ZONE, addDays } from "@/lib/domain/time";
+import { env, hasEnv } from "@/lib/env";
 import type { CalendarEvent } from "@/lib/domain/types";
 import { minutesToInstant } from "@/lib/scheduler";
 
@@ -25,15 +26,15 @@ export interface CalendarAdapter {
 }
 
 export function googleIsConfigured(): boolean {
-  return Boolean(
-    process.env.GOOGLE_CLIENT_ID &&
-      process.env.GOOGLE_CLIENT_SECRET &&
-      process.env.GOOGLE_REFRESH_TOKEN,
+  return (
+    hasEnv("GOOGLE_CLIENT_ID") &&
+    hasEnv("GOOGLE_CLIENT_SECRET") &&
+    hasEnv("GOOGLE_REFRESH_TOKEN")
   );
 }
 
 export function eventPrefix(): string {
-  return process.env.GCAL_EVENT_PREFIX ?? "[ODY] ";
+  return env("GCAL_EVENT_PREFIX", "[ODY] ");
 }
 
 /* ------------------------------------------------------------------ google */
@@ -41,7 +42,7 @@ export function eventPrefix(): string {
 class GoogleCalendarAdapter implements CalendarAdapter {
   readonly kind = "google" as const;
 
-  private calendarId = process.env.GOOGLE_CALENDAR_ID ?? "primary";
+  private calendarId = env("GOOGLE_CALENDAR_ID", "primary");
 
   private api() {
     const auth = new google.auth.OAuth2(
@@ -179,4 +180,4 @@ export function calendar(): CalendarAdapter {
   return globalRef[ADAPTER_KEY]!;
 }
 
-export const CALENDAR_TIME_ZONE = process.env.APP_TIME_ZONE ?? DEFAULT_TIME_ZONE;
+export const CALENDAR_TIME_ZONE = env("APP_TIME_ZONE", DEFAULT_TIME_ZONE);

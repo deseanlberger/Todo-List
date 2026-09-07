@@ -2,6 +2,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { CALENDAR_TIME_ZONE } from "@/lib/calendar";
+import { hasEnv } from "@/lib/env";
 import { CATEGORIES } from "@/lib/domain/categories";
 import { DEFAULT_TIME_ZONE, WEEKDAY_FULL, zonedParts } from "@/lib/domain/time";
 import type { EstimationSample, TaskCategory, TaskLocation } from "@/lib/domain/types";
@@ -14,7 +15,7 @@ import { CaptureSchema, type CapturedTask } from "./schema";
 const MODEL = "claude-opus-5";
 
 export function claudeIsConfigured(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+  return hasEnv("ANTHROPIC_API_KEY") || hasEnv("ANTHROPIC_AUTH_TOKEN");
 }
 
 export interface ParseInput {
