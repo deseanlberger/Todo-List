@@ -99,9 +99,17 @@ export function ActionBar({ children }: { children: React.ReactNode }) {
   );
 }
 
-const TABS = [
+interface Tab {
+  href: string;
+  label: string;
+  Icon: typeof Sun;
+  /** Other routes this tab owns, so the highlight follows a sub-view. */
+  alsoMatches?: string[];
+}
+
+const TABS: Tab[] = [
   { href: "/today", label: "Today", Icon: Sun },
-  { href: "/week", label: "Week", Icon: CalendarDays },
+  { href: "/week", label: "Calendar", Icon: CalendarDays, alsoMatches: ["/month"] },
   { href: "/tasks", label: "Tasks", Icon: ListChecks },
   { href: "/delegate", label: "Delegate", Icon: Send },
 ];
@@ -114,8 +122,11 @@ export function TabBar() {
       className="bar-blur flex shrink-0 pt-1.5 pb-[22px]"
       style={{ borderTop: "0.5px solid var(--separator)" }}
     >
-      {TABS.map(({ href, label, Icon }) => {
-        const active = pathname === href || pathname.startsWith(`${href}/`);
+      {TABS.map(({ href, label, Icon, alsoMatches }) => {
+        const owns = [href, ...(alsoMatches ?? [])];
+        const active = owns.some(
+          (route) => pathname === route || pathname.startsWith(`${route}/`),
+        );
         return (
           <Link
             key={href}

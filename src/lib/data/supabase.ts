@@ -221,6 +221,19 @@ export class SupabaseRepository implements Repository {
     return rows.map(toBlock);
   }
 
+  async listBlocksBetween(fromIso: string, toIso: string): Promise<ScheduledBlock[]> {
+    const rows = unwrap(
+      await this.db
+        .from("scheduled_blocks")
+        .select("*")
+        .eq("user_id", this.userId)
+        .gte("start_time", fromIso)
+        .lt("start_time", toIso)
+        .order("start_time"),
+    );
+    return rows.map(toBlock);
+  }
+
   async replaceBlocks(
     weekOf: string,
     blocks: Omit<ScheduledBlock, "id" | "userId" | "createdAt">[],

@@ -1,7 +1,7 @@
 import "server-only";
 import { google } from "googleapis";
 import { DEMO_CALENDAR } from "@/lib/data/seed";
-import { DEFAULT_TIME_ZONE, addDays } from "@/lib/domain/time";
+import { DEFAULT_TIME_ZONE, addDays, isoDate, weekOf } from "@/lib/domain/time";
 import { env, hasEnv } from "@/lib/env";
 import type { CalendarEvent } from "@/lib/domain/types";
 import { minutesToInstant } from "@/lib/scheduler";
@@ -17,6 +17,8 @@ export interface CalendarAdapter {
   readonly kind: "google" | "stub";
   /** Read the week. Always called before anything is written (§ read first). */
   listWeek(weekStart: string, timeZone: string): Promise<CalendarEvent[]>;
+  /** Read an arbitrary span of days, `[fromDate, toDate)`. */
+  listRange(fromDate: string, toDate: string, timeZone: string): Promise<CalendarEvent[]>;
   /** Replace every event this app owns in the week with `events`. */
   writeWeek(
     weekStart: string,
@@ -54,8 +56,16 @@ class GoogleCalendarAdapter implements CalendarAdapter {
   }
 
   async listWeek(weekStart: string, timeZone: string): Promise<CalendarEvent[]> {
-    const timeMin = minutesToInstant(weekStart, 0, timeZone);
-    const timeMax = minutesToInstant(addDays(weekStart, 7), 0, timeZone);
+    return this.listRange(weekStart, addDays(weekStart, 7), timeZone);
+  }
+
+  async listRange(
+    fromDate: string,
+    toDate: string,
+    timeZone: string,
+  ): Promise<CalendarEvent[]> {
+    const timeMin = minutesToInstant(fromDate, 0, timeZone);
+    const timeMax = minutesToInstant(toDate, 0, timeZone);
 
     const response = await this.api().events.list({
       calendarId: this.calendarId,
@@ -148,6 +158,28 @@ class StubCalendarAdapter implements CalendarAdapter {
     }));
 
     return [...walls, ...ours];
+  }
+
+  /** The demo week repeats, so a range is just each week in it, stitched. */
+  async listRange(
+    fromDate: string,
+    toDate: string,
+    timeZone: string,
+  ): Promise<CalendarEvent[]> {
+    const events: CalendarEvent[] = [];
+    let cursor = weekOf(
+      minutesToInstant(fromDate, 12 * 60, timeZone),
+      timeZone,
+    );
+    // Guard against a runaway loop on a malformed range.
+    for (let guard = 0; guard < 60 && cursor < toDate; guard++) {
+      for (const event of await this.listWeek(cursor, timeZone)) {
+        const day = isoDate(new Date(event.start), timeZone);
+        if (day >= fromDate && day < toDate) events.push(event);
+      }
+      cursor = addDays(cursor, 7);
+    }
+    return events;
   }
 
   async writeWeek(weekStart: string, _timeZone: string, events: CalendarWrite[]) {

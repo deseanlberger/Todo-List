@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { repository, type NewWindow, type TaskPatch } from "@/lib/data";
+import { claudeIsConfigured, parseCapture } from "@/lib/capture/parse";
 import { categoryMeta } from "@/lib/domain/categories";
 import type { SortMode, Task, TaskCategory, TaskLocation } from "@/lib/domain/types";
 import {
@@ -79,6 +80,82 @@ export async function createTask(input: {
 export async function deleteTask(taskId: string) {
   await repository().deleteTask(taskId);
   refresh();
+}
+
+/* ---------------------------------------------------------------- capture */
+
+export interface CapturedSummary {
+  id: string;
+  title: string;
+  category: TaskCategory;
+  location: TaskLocation;
+  estimatedBlocks: number;
+  financialImpact: number;
+  dueDate: string | null;
+  assignee: string | null;
+}
+
+/**
+ * Quick add: one spoken or typed message becomes one or more tasks.
+ *
+ * Same path the Telegram bot uses, so a task captured by voice in the app is
+ * indistinguishable from one captured on the phone. Claude parses it when
+ * credentials are configured; otherwise the keyword parser still gets it into
+ * the backlog rather than dropping what was said.
+ */
+export async function captureTasks(
+  text: string,
+  source: "voice" | "text" = "text",
+): Promise<CapturedSummary[]> {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+
+  const repo = repository();
+  const history = await repo.listEstimationHistory(50);
+  const parsed = await parseCapture({ text: trimmed, history, now: new Date() });
+
+  const created: CapturedSummary[] = [];
+  for (const task of parsed) {
+    const saved = await repo.createTask({
+      title: task.title,
+      notes: null,
+      category: task.category,
+      location: task.location,
+      estimatedBlocks: task.estimatedBlocks,
+      actualBlocks: null,
+      dueDate: task.dueDate,
+      financialImpact: task.financialImpact,
+      assignee: task.assignee,
+      handedOffAt: null,
+      status: "backlog",
+      isRecurring: false,
+      recurrenceRule: null,
+      reminderLeadDays: 1,
+      captureSource: source === "voice" ? "telegram_voice" : "manual",
+      // Kept so he can check what was actually heard.
+      captureTranscript: source === "voice" ? trimmed : null,
+      completedAt: null,
+    });
+
+    created.push({
+      id: saved.id,
+      title: saved.title,
+      category: saved.category,
+      location: saved.location,
+      estimatedBlocks: saved.estimatedBlocks,
+      financialImpact: saved.financialImpact,
+      dueDate: saved.dueDate,
+      assignee: saved.assignee,
+    });
+  }
+
+  refresh();
+  return created;
+}
+
+/** Whether Claude is doing the parsing, so the UI can be honest about it. */
+export async function captureIsSmart(): Promise<boolean> {
+  return claudeIsConfigured();
 }
 
 /* --------------------------------------------------------------- delegate */

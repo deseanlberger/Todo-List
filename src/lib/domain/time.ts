@@ -265,6 +265,32 @@ export function formatRange12(startMinutes: number, endMinutes: number): string 
   return `${formatClock12(startMinutes, true)} – ${formatClock12(endMinutes, true)}`;
 }
 
+/* ------------------------------------------------------------------ months */
+
+/** The first of the month containing `date`, as `YYYY-MM-DD`. */
+export function monthStart(date: Date, timeZone: string): string {
+  const p = zonedParts(date, timeZone);
+  return `${p.year}-${pad(p.month)}-01`;
+}
+
+/** Shift a `YYYY-MM-DD` by whole months, clamping to the first. */
+export function addMonths(isoDay: string, months: number): string {
+  const { year, month } = parseIsoDate(isoDay);
+  const shifted = new Date(Date.UTC(year, month - 1 + months, 1));
+  return `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}-01`;
+}
+
+/** `September 2026` */
+export function formatMonthLong(isoDay: string): string {
+  const { year, month } = parseIsoDate(isoDay);
+  return `${MONTH_FULL[month - 1]} ${year}`;
+}
+
+export function daysInMonth(isoDay: string): number {
+  const { year, month } = parseIsoDate(isoDay);
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
 export function pad(value: number): string {
   return String(value).padStart(2, "0");
 }
