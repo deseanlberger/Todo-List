@@ -71,6 +71,7 @@ export function toWindow(row: any): AvailabilityWindow {
     startTime: String(row.start_time).slice(0, 5),
     endTime: String(row.end_time).slice(0, 5),
     allowance: row.allowance,
+    label: row.label ?? null,
     sortOrder: row.sort_order,
   };
 }

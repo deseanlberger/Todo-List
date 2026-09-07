@@ -12,22 +12,22 @@ export const DEMO_USER_ID = "00000000-0000-0000-0000-000000000000";
 
 /** The seed week template from `schema.sql`, as domain objects. */
 export const SEED_WINDOWS: Omit<AvailabilityWindow, "id" | "userId">[] = [
-  { weekday: 0, startTime: "05:30", endTime: "08:00", allowance: "any", sortOrder: 0 },
-  { weekday: 0, startTime: "12:00", endTime: "14:00", allowance: "any", sortOrder: 1 },
-  { weekday: 0, startTime: "20:00", endTime: "22:00", allowance: "admin_only", sortOrder: 2 },
-  { weekday: 1, startTime: "05:30", endTime: "08:00", allowance: "deep_focus", sortOrder: 0 },
-  { weekday: 1, startTime: "12:00", endTime: "14:30", allowance: "any", sortOrder: 1 },
-  { weekday: 2, startTime: "05:30", endTime: "08:00", allowance: "any", sortOrder: 0 },
-  { weekday: 2, startTime: "11:00", endTime: "14:00", allowance: "any", sortOrder: 1 },
-  { weekday: 2, startTime: "20:00", endTime: "22:00", allowance: "admin_only", sortOrder: 2 },
-  { weekday: 3, startTime: "06:00", endTime: "08:30", allowance: "deep_focus", sortOrder: 0 },
-  { weekday: 3, startTime: "11:00", endTime: "15:00", allowance: "any", sortOrder: 1 },
-  { weekday: 3, startTime: "20:00", endTime: "22:00", allowance: "admin_only", sortOrder: 2 },
-  { weekday: 4, startTime: "05:30", endTime: "08:00", allowance: "any", sortOrder: 0 },
-  { weekday: 4, startTime: "12:00", endTime: "14:00", allowance: "any", sortOrder: 1 },
-  { weekday: 5, startTime: "07:00", endTime: "12:00", allowance: "deep_focus", sortOrder: 0 },
-  { weekday: 6, startTime: "08:00", endTime: "11:00", allowance: "any", sortOrder: 0 },
-  { weekday: 6, startTime: "19:00", endTime: "21:00", allowance: "no_work", sortOrder: 1 },
+  { weekday: 0, startTime: "05:30", endTime: "08:00", allowance: "any", label: null, sortOrder: 0 },
+  { weekday: 0, startTime: "12:00", endTime: "14:00", allowance: "any", label: null, sortOrder: 1 },
+  { weekday: 0, startTime: "20:00", endTime: "22:00", allowance: "admin_only", label: null, sortOrder: 2 },
+  { weekday: 1, startTime: "05:30", endTime: "08:00", allowance: "deep_focus", label: null, sortOrder: 0 },
+  { weekday: 1, startTime: "12:00", endTime: "14:30", allowance: "any", label: null, sortOrder: 1 },
+  { weekday: 2, startTime: "05:30", endTime: "08:00", allowance: "any", label: null, sortOrder: 0 },
+  { weekday: 2, startTime: "11:00", endTime: "14:00", allowance: "any", label: null, sortOrder: 1 },
+  { weekday: 2, startTime: "20:00", endTime: "22:00", allowance: "admin_only", label: null, sortOrder: 2 },
+  { weekday: 3, startTime: "06:00", endTime: "08:30", allowance: "deep_focus", label: null, sortOrder: 0 },
+  { weekday: 3, startTime: "11:00", endTime: "15:00", allowance: "any", label: null, sortOrder: 1 },
+  { weekday: 3, startTime: "20:00", endTime: "22:00", allowance: "admin_only", label: null, sortOrder: 2 },
+  { weekday: 4, startTime: "05:30", endTime: "08:00", allowance: "any", label: null, sortOrder: 0 },
+  { weekday: 4, startTime: "12:00", endTime: "14:00", allowance: "any", label: null, sortOrder: 1 },
+  { weekday: 5, startTime: "07:00", endTime: "12:00", allowance: "deep_focus", label: null, sortOrder: 0 },
+  { weekday: 6, startTime: "08:00", endTime: "11:00", allowance: "any", label: null, sortOrder: 0 },
+  { weekday: 6, startTime: "19:00", endTime: "21:00", allowance: "no_work", label: null, sortOrder: 1 },
 ];
 
 export const SEED_SETTINGS: SchedulerSettings = {

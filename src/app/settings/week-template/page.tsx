@@ -15,6 +15,7 @@ export default async function WeekTemplatePage() {
         startTime: window.startTime,
         endTime: window.endTime,
         allowance: window.allowance,
+        label: window.label,
         sortOrder: window.sortOrder,
       }))}
       initialCap={settings.deepFocusCap}

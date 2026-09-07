@@ -17,6 +17,7 @@ export interface EditorWindow {
   startTime: string;
   endTime: string;
   allowance: WindowAllowance;
+  label: string | null;
   sortOrder: number;
 }
 
@@ -79,6 +80,13 @@ export function WeekTemplateEditor({
     );
   };
 
+  const editLabel = (id: string, value: string) => {
+    touch();
+    setWindows((current) =>
+      current.map((window) => (window.id === id ? { ...window, label: value } : window)),
+    );
+  };
+
   const editTime = (id: string, field: "startTime" | "endTime", value: string) => {
     touch();
     setWindows((current) =>
@@ -101,6 +109,7 @@ export function WeekTemplateEditor({
         startTime: "09:00",
         endTime: "10:00",
         allowance: "any",
+        label: null,
         sortOrder: current.filter((w) => w.weekday === weekday).length,
       },
     ]);
@@ -137,7 +146,7 @@ export function WeekTemplateEditor({
           </Row>
         </Group>
 
-        <Group footer="Tap a day to open it, then set the hours you are free. Tap a block’s label to cycle what may land in it.">
+        <Group footer="Tap a day to open it, then set the hours you are free. Tap a block to name it. Tap the pill to cycle what may land there.">
           {WEEKDAY_FULL.map((label, weekday) => {
           const dayWindows = windows
             .filter((window) => window.weekday === weekday)
@@ -175,16 +184,30 @@ export function WeekTemplateEditor({
                             type="button"
                             onClick={() => setEditingTime(editing ? null : window.id)}
                             aria-expanded={editing}
-                            className="t-body tnum shrink-0 whitespace-nowrap text-left"
+                            className="min-w-0 flex-1 text-left"
                             style={{ color: editing ? "var(--blue)" : "var(--label)" }}
                           >
-                            {to12(window.startTime)} – {to12(window.endTime)}
+                            {window.label?.trim() ? (
+                              <>
+                                <span className="t-body block truncate">{window.label}</span>
+                                <span
+                                  className="t-footnote tnum block"
+                                  style={{ color: "var(--label-2)" }}
+                                >
+                                  {to12(window.startTime)} – {to12(window.endTime)}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="t-body tnum block whitespace-nowrap">
+                                {to12(window.startTime)} – {to12(window.endTime)}
+                              </span>
+                            )}
                           </button>
 
                           <button
                             type="button"
                             onClick={() => cycleAllowance(window.id)}
-                            className="pressable-solid t-footnote ml-auto shrink-0 truncate rounded-full px-2.5 py-1"
+                            className="pressable-solid t-footnote shrink-0 truncate rounded-full px-2.5 py-1"
                             style={{
                               background: "var(--fill)",
                               color: ALLOWANCE_COLOR[window.allowance],
@@ -206,6 +229,23 @@ export function WeekTemplateEditor({
                         </Row>
 
                         {editing ? (
+                          <>
+                          <Row inset>
+                            <input
+                              aria-label="What this block is"
+                              placeholder={
+                                window.allowance === "no_work"
+                                  ? "Closed for what? e.g. Coaching"
+                                  : "Name this block (optional)"
+                              }
+                              value={window.label ?? ""}
+                              onChange={(event) =>
+                                editLabel(window.id, event.target.value)
+                              }
+                              className="t-body w-full rounded-[8px] px-2 py-1.5 outline-none"
+                              style={{ background: "var(--fill)" }}
+                            />
+                          </Row>
                           <Row inset>
                             <input
                               type="time"
@@ -229,6 +269,7 @@ export function WeekTemplateEditor({
                               style={{ background: "var(--fill)" }}
                             />
                           </Row>
+                          </>
                         ) : null}
                       </div>
                     );
@@ -329,6 +370,7 @@ function asDomain(windows: EditorWindow[]) {
       startTime: formatClock(parseClock(window.startTime)),
       endTime: formatClock(parseClock(window.endTime)),
       allowance: window.allowance,
+      label: window.label?.trim() ? window.label.trim() : null,
       sortOrder: window.sortOrder,
       id: window.id.startsWith("new-") ? undefined : window.id,
       userId: "",

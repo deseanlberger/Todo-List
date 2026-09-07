@@ -69,6 +69,29 @@ export async function loadWeekView(
         done: false,
       }));
 
+    // SCHEDULER_RULES §3: a NO WORK window is closed time. It never had a
+    // reason attached, so the calendar could not show why the day had a hole
+    // in it. A named one now appears as its own locked row.
+    const closedEntries: WeekEntry[] = windows
+      .filter(
+        (window) =>
+          window.weekday === dayIndex &&
+          window.allowance === "no_work" &&
+          !!window.label?.trim(),
+      )
+      .map((window) => ({
+        taskId: null,
+        title: window.label!.trim(),
+        category: null,
+        start: parseClock(window.startTime),
+        end: parseClock(window.endTime),
+        locked: true,
+        isReset: false,
+        urgent: false,
+        location: null,
+        done: false,
+      }));
+
     const blockEntries: WeekEntry[] = blocks
       .filter((block) => isoDate(new Date(block.startTime), CALENDAR_TIME_ZONE) === date)
       .map((block) => {
@@ -87,7 +110,9 @@ export async function loadWeekView(
         };
       });
 
-    const entries = [...lockedEntries, ...blockEntries].sort((a, b) => a.start - b.start);
+    const entries = [...lockedEntries, ...closedEntries, ...blockEntries].sort(
+      (a, b) => a.start - b.start,
+    );
     const work = entries.filter((entry) => !entry.locked && !entry.isReset);
 
     const templateMinutes = windows

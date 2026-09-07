@@ -156,6 +156,7 @@ export class SupabaseRepository implements Repository {
           start_time: w.startTime,
           end_time: w.endTime,
           allowance: w.allowance,
+          label: w.label,
           sort_order: w.sortOrder,
         })),
       );

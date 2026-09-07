@@ -50,6 +50,7 @@ export function makeWindow(
   startTime: string,
   endTime: string,
   allowance: AvailabilityWindow["allowance"] = "any",
+  label: string | null = null,
 ): AvailabilityWindow {
   seq += 1;
   return {
@@ -59,6 +60,7 @@ export function makeWindow(
     startTime,
     endTime,
     allowance,
+    label,
     sortOrder: 0,
   };
 }

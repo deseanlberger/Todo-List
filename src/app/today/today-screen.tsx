@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertCircle, Check } from "lucide-react";
@@ -31,10 +31,48 @@ export function TodayScreen({
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [ticked, setTicked] = useState<Record<string, boolean>>({});
+  const [hideDone, setHideDone] = useState(false);
+
+  // Remember the choice per device. Storage can throw in a private window,
+  // and a missing preference is not worth breaking the screen over.
+  useEffect(() => {
+    try {
+      setHideDone(localStorage.getItem("today.hideDone") === "1");
+    } catch {
+      /* no stored preference; the default stands */
+    }
+  }, []);
+
+  const toggleHideDone = () => {
+    setHideDone((value) => {
+      const next = !value;
+      try {
+        localStorage.setItem("today.hideDone", next ? "1" : "0");
+      } catch {
+        /* the toggle still works for this session */
+      }
+      return next;
+    });
+  };
   const [pending, startTransition] = useTransition();
 
   const active = view.activeEntry;
-  const rows = buildRows(view, resetMinutes);
+
+  // A tick is held locally until the server render catches up, so the row it
+  // belongs to has to be rebuilt with that state before anything reads it.
+  const rows = buildRows(view, resetMinutes).map((row) =>
+    row.kind === "entry" && row.entry.taskId && row.entry.taskId in ticked
+      ? { ...row, entry: { ...row.entry, done: ticked[row.entry.taskId!] } }
+      : row,
+  );
+
+  const doneCount = rows.filter(
+    (row) => row.kind === "entry" && row.entry.done && row.entry.taskId,
+  ).length;
+
+  const visibleRows = hideDone
+    ? rows.filter((row) => !(row.kind === "entry" && row.entry.done && row.entry.taskId))
+    : rows;
 
   // The ticked row is held locally so it strikes through on tap; the server
   // render that follows is what makes it stick.
@@ -97,28 +135,39 @@ export function TodayScreen({
             }
           />
         ) : (
-          <Group>
-            {rows.map((row, index) => {
-              if (row.kind === "now") {
-                return <NowMarker key={`now-${index}`} minutes={view.nowMinutes} />;
-              }
-              if (row.kind === "reset") {
-                return <ResetRow key={`reset-${index}`} minutes={row.minutes} />;
-              }
-              return (
-                <TimelineRow
-                  key={`${row.entry.title}-${index}`}
-                  entry={
-                    row.entry.taskId && row.entry.taskId in ticked
-                      ? { ...row.entry, done: ticked[row.entry.taskId] }
-                      : row.entry
-                  }
-                  isActive={row.isActive}
-                  onToggleDone={(done) => toggleDone(row.entry, done)}
-                />
-              );
-            })}
-          </Group>
+          <>
+            {doneCount > 0 ? (
+              <div className="mb-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={toggleHideDone}
+                  className="pressable-solid t-footnote rounded-full px-3 py-1.5"
+                  style={{ background: "var(--fill)", color: "var(--blue)", fontWeight: 500 }}
+                >
+                  {hideDone ? `Show ${doneCount} done` : `Hide ${doneCount} done`}
+                </button>
+              </div>
+            ) : null}
+
+            <Group>
+              {visibleRows.map((row, index) => {
+                if (row.kind === "now") {
+                  return <NowMarker key={`now-${index}`} minutes={view.nowMinutes} />;
+                }
+                if (row.kind === "reset") {
+                  return <ResetRow key={`reset-${index}`} minutes={row.minutes} />;
+                }
+                return (
+                  <TimelineRow
+                    key={`${row.entry.title}-${index}`}
+                    entry={row.entry}
+                    isActive={row.isActive}
+                    onToggleDone={(done) => toggleDone(row.entry, done)}
+                  />
+                );
+              })}
+            </Group>
+          </>
         )}
       </Content>
 
@@ -285,16 +334,22 @@ function TimelineRow({
 
       <span className="min-w-0 flex-1">
         <span
-          className="t-body block truncate"
+          className="t-body block"
           style={{
             color: locked ? "var(--label-2)" : "var(--label)",
             fontWeight: isActive ? 600 : 400,
             textDecoration: entry.done ? "line-through" : undefined,
+            // Wrap to two lines rather than clip. "Write SMHS volleyball
+            // bl…" tells you nothing about which block it is.
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
           }}
         >
           {entry.title}
         </span>
-        <span className="t-footnote block truncate" style={{ color: "var(--label-2)" }}>
+        <span className="t-footnote block" style={{ color: "var(--label-2)" }}>
           {locked
             ? `Calendar · ${formatRange12(entry.start, entry.end)}`
             : [

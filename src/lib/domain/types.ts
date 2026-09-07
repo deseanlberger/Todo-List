@@ -68,6 +68,11 @@ export interface AvailabilityWindow {
   startTime: string;
   endTime: string;
   allowance: WindowAllowance;
+  /**
+   * What this window is, in the user's words. Optional. A closed window
+   * carries its reason here, and shows on the calendar when it has one.
+   */
+  label: string | null;
   sortOrder: number;
 }
 
