@@ -1,5 +1,6 @@
 import "server-only";
 import { CATEGORIES } from "@/lib/domain/categories";
+import { hasEnv } from "@/lib/env";
 import { CALENDAR_TIME_ZONE } from "@/lib/calendar";
 import { WEEKDAY_LABELS, zonedParts } from "@/lib/domain/time";
 import type { Task } from "@/lib/domain/types";
@@ -7,7 +8,7 @@ import type { Task } from "@/lib/domain/types";
 const API = "https://api.telegram.org";
 
 export function telegramIsConfigured(): boolean {
-  return Boolean(process.env.TELEGRAM_BOT_TOKEN);
+  return hasEnv("TELEGRAM_BOT_TOKEN");
 }
 
 function token(): string {
@@ -21,8 +22,8 @@ function token(): string {
  * finds the URL can post tasks into the backlog.
  */
 export function webhookSecretMatches(header: string | null): boolean {
+  if (!hasEnv("TELEGRAM_WEBHOOK_SECRET")) return true; // Nothing to check.
   const expected = process.env.TELEGRAM_WEBHOOK_SECRET;
-  if (!expected) return true; // No secret configured; nothing to check.
   return header === expected;
 }
 

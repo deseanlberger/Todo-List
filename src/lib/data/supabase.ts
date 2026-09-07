@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { env, hasEnv } from "@/lib/env";
 import type {
   AvailabilityOverride,
   AvailabilityWindow,
@@ -28,16 +29,19 @@ import type {
 import { SEED_SETTINGS } from "./seed";
 
 export function supabaseIsConfigured(): boolean {
-  return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+  return (
+    hasEnv("NEXT_PUBLIC_SUPABASE_URL") &&
+    (hasEnv("SUPABASE_SERVICE_ROLE_KEY") || hasEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"))
   );
 }
 
 function client(): SupabaseClient {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const url = env("NEXT_PUBLIC_SUPABASE_URL", "");
+  // The modern `sb_secret_…` key and the legacy service_role JWT are both
+  // accepted here; either one bypasses RLS, which the app relies on.
+  const key = hasEnv("SUPABASE_SERVICE_ROLE_KEY")
+    ? env("SUPABASE_SERVICE_ROLE_KEY", "")
+    : env("NEXT_PUBLIC_SUPABASE_ANON_KEY", "");
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
@@ -57,7 +61,7 @@ export class SupabaseRepository implements Repository {
   readonly kind = "supabase" as const;
 
   private db = client();
-  private userId = process.env.APP_USER_ID ?? "00000000-0000-0000-0000-000000000000";
+  private userId = env("APP_USER_ID", "00000000-0000-0000-0000-000000000000");
 
   async listTasks(): Promise<Task[]> {
     const rows = unwrap(

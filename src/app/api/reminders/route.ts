@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { CALENDAR_TIME_ZONE } from "@/lib/calendar";
 import { repository } from "@/lib/data";
+import { hasEnv } from "@/lib/env";
 import {
   MONTH_LABELS,
   addDays,
@@ -23,7 +24,7 @@ export const dynamic = "force-dynamic";
  * used for exactly two things: capturing tasks, and these reminders.
  */
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET;
+  const secret = hasEnv("CRON_SECRET") ? process.env.CRON_SECRET : null;
   if (secret) {
     const header = request.headers.get("authorization");
     if (header !== `Bearer ${secret}`) {
@@ -31,7 +32,7 @@ export async function GET(request: Request) {
     }
   }
 
-  const chatId = process.env.TELEGRAM_CHAT_ID;
+  const chatId = hasEnv("TELEGRAM_CHAT_ID") ? process.env.TELEGRAM_CHAT_ID : null;
   if (!telegramIsConfigured() || !chatId) {
     return NextResponse.json({ sent: 0, reason: "Telegram is not configured" });
   }
