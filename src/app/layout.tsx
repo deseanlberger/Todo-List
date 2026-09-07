@@ -45,16 +45,23 @@ export default async function RootLayout({
 }) {
   // Read the persisted theme on the server so the first paint is already
   // correct — a flash of the wrong view on a true-black app is glaring.
-  const settings = await repository().getSettings();
+  // Never let this be what stops the app rendering: an unreachable database
+  // should cost the remembered theme, not the whole page.
+  let theme: "dark" | "light" = "dark";
+  try {
+    theme = (await repository().getSettings()).theme;
+  } catch (cause) {
+    console.error("Could not read the theme; falling back to dark:", cause);
+  }
 
   return (
     <html
       lang="en"
-      data-theme={settings.theme}
+      data-theme={theme}
       className={`${bebas.variable} ${rajdhani.variable} ${robotoMono.variable}`}
     >
       <body>
-        <ThemeProvider initialTheme={settings.theme}>
+        <ThemeProvider initialTheme={theme}>
           <div className="flex min-h-[100dvh] justify-center bg-black">
             <div className="relative flex min-h-[100dvh] w-full max-w-[390px] flex-col bg-bg">
               {children}

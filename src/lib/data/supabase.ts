@@ -168,25 +168,32 @@ export class SupabaseRepository implements Repository {
     return rows.map(toOverride);
   }
 
-  async getSettings(): Promise<SchedulerSettings> {
+  private async selectSettings(): Promise<SchedulerSettings | null> {
     const { data, error } = await this.db
       .from("scheduler_settings")
       .select("*")
       .eq("user_id", this.userId)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (data) return toSettings(data);
+    return data ? toSettings(data) : null;
+  }
 
-    // First run: write the defaults rather than making every caller cope
-    // with a missing row.
-    const created = unwrap(
-      await this.db
-        .from("scheduler_settings")
-        .insert({ user_id: this.userId })
-        .select()
-        .single(),
-    );
-    return toSettings(created);
+  async getSettings(): Promise<SchedulerSettings> {
+    const existing = await this.selectSettings();
+    if (existing) return existing;
+
+    // First run: write the defaults rather than making every caller cope with
+    // a missing row. Several requests hit this at once on a cold start — a
+    // plain insert makes all but the first fail on the primary key, so upsert
+    // and let the losers no-op.
+    const { error } = await this.db
+      .from("scheduler_settings")
+      .upsert({ user_id: this.userId }, { onConflict: "user_id", ignoreDuplicates: true });
+    if (error) throw new Error(error.message);
+
+    const created = await this.selectSettings();
+    if (!created) throw new Error("Could not create the scheduler settings row");
+    return created;
   }
 
   async updateSettings(patch: Partial<SchedulerSettings>): Promise<SchedulerSettings> {
