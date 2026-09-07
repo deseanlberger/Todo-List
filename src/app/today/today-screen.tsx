@@ -294,7 +294,15 @@ function TimelineRow({
         {formatClock12(entry.start)}
       </span>
 
-      {entry.category && entry.taskId && onToggleDone ? (
+      {entry.isFree ? (
+        // A hollow ring in the slot's own colour: clearly a shape waiting to
+        // be filled, not a task pretending to be one.
+        <span
+          aria-hidden="true"
+          className="h-[10px] w-[10px] shrink-0 rounded-full"
+          style={{ border: `2px solid ${allowanceColor(entry.allowance)}` }}
+        />
+      ) : entry.category && entry.taskId && onToggleDone ? (
         // Same circle as the Tasks list, so ticking work off works the same
         // wherever you are looking at it.
         <button
@@ -336,7 +344,11 @@ function TimelineRow({
         <span
           className="t-body block"
           style={{
-            color: locked ? "var(--label-2)" : "var(--label)",
+            color: entry.isFree
+              ? allowanceColor(entry.allowance)
+              : locked
+                ? "var(--label-2)"
+                : "var(--label)",
             fontWeight: isActive ? 600 : 400,
             textDecoration: entry.done ? "line-through" : undefined,
             // Wrap to two lines rather than clip. "Write SMHS volleyball
@@ -350,7 +362,9 @@ function TimelineRow({
           {entry.title}
         </span>
         <span className="t-footnote block" style={{ color: "var(--label-2)" }}>
-          {locked
+          {entry.isFree
+            ? `Open · ${formatRange12(entry.start, entry.end)}`
+            : locked
             ? `Calendar · ${formatRange12(entry.start, entry.end)}`
             : [
                 entry.category ? sentence(CATEGORIES[entry.category].label) : null,
@@ -432,4 +446,17 @@ function buildRows(view: TodayView, resetMinutes: number): Row[] {
   if (!nowPlaced && rows.length > 0) rows.push({ kind: "now" });
 
   return rows;
+}
+
+/**
+ * A free slot's colour, from what it accepts.
+ *
+ * These are the category colours, so a Deep focus window and a Deep focus
+ * task read as the same kind of thing — which is the point: the day should
+ * look like itself before anything is scheduled into it.
+ */
+function allowanceColor(allowance: WeekEntry["allowance"]): string {
+  if (allowance === "deep_focus") return "var(--cat-deep-focus)";
+  if (allowance === "admin_only") return "var(--cat-high-priority-admin)";
+  return "var(--label-2)";
 }

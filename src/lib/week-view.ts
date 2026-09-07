@@ -110,10 +110,44 @@ export async function loadWeekView(
         };
       });
 
-    const entries = [...lockedEntries, ...closedEntries, ...blockEntries].sort(
-      (a, b) => a.start - b.start,
+    // What the template gives you that nothing has claimed yet. Without
+    // these a day with no schedule run reads as empty, when really it is
+    // three hours of deep focus waiting to be filled.
+    const taken = [...lockedEntries, ...closedEntries, ...blockEntries].map((entry) => ({
+      start: entry.start,
+      end: entry.end,
+    }));
+
+    const freeEntries: WeekEntry[] = windows
+      .filter((window) => window.weekday === dayIndex && window.allowance !== "no_work")
+      .flatMap((window) =>
+        subtract(parseClock(window.startTime), parseClock(window.endTime), taken).map(
+          ([start, end]) => ({
+            taskId: null,
+            title: window.label?.trim() || ALLOWANCE_TITLE[window.allowance],
+            category: null,
+            start,
+            end,
+            locked: false,
+            isReset: false,
+            urgent: false,
+            location: null,
+            done: false,
+            isFree: true,
+            allowance: window.allowance,
+          }),
+        ),
+      );
+
+    const entries = [
+      ...lockedEntries,
+      ...closedEntries,
+      ...blockEntries,
+      ...freeEntries,
+    ].sort((a, b) => a.start - b.start || a.end - b.end);
+    const work = entries.filter(
+      (entry) => !entry.locked && !entry.isReset && !entry.isFree,
     );
-    const work = entries.filter((entry) => !entry.locked && !entry.isReset);
 
     const templateMinutes = windows
       .filter((w) => w.weekday === dayIndex && w.allowance !== "no_work")
@@ -165,4 +199,41 @@ export async function loadWeekView(
 function isTaskUrgent(task: Task, now: Date): boolean {
   if (!task.dueDate || task.status === "done") return false;
   return new Date(task.dueDate).getTime() <= now.getTime() + 48 * 3_600_000;
+}
+
+/** The fallback name for an unlabelled window, by what it accepts. */
+const ALLOWANCE_TITLE: Record<string, string> = {
+  any: "Open",
+  deep_focus: "Deep focus",
+  admin_only: "Admin",
+  no_work: "Closed",
+};
+
+/**
+ * `[start, end)` with every interval in `busy` removed, as the pieces that
+ * survive. Used to find the part of a window nothing has claimed.
+ *
+ * A leftover under 5 minutes is dropped: it is a rounding artefact, not time
+ * anyone can use, and rendering it would litter the day with slivers.
+ */
+function subtract(
+  start: number,
+  end: number,
+  busy: { start: number; end: number }[],
+): [number, number][] {
+  const overlapping = busy
+    .filter((slot) => slot.end > start && slot.start < end)
+    .sort((a, b) => a.start - b.start);
+
+  const pieces: [number, number][] = [];
+  let cursor = start;
+
+  for (const slot of overlapping) {
+    if (slot.start > cursor) pieces.push([cursor, Math.min(slot.start, end)]);
+    cursor = Math.max(cursor, slot.end);
+    if (cursor >= end) break;
+  }
+  if (cursor < end) pieces.push([cursor, end]);
+
+  return pieces.filter(([from, to]) => to - from >= 5);
 }

@@ -228,7 +228,9 @@ export function WeekScreen({ view }: { view: WeekView }) {
 /** A day's committed time: locked calendar time, then each block, then open. */
 function LoadMeter({ day }: { day: WeekDay }) {
   const segments = day.entries
-    .filter((entry) => !entry.isReset)
+    // Free slots are time you *have*, not time you have spent. Counting
+    // them here would show every day as full before anything is scheduled.
+    .filter((entry) => !entry.isReset && !entry.isFree)
     .map((entry) => ({
       minutes: Math.max(0, entry.end - entry.start),
       color: entry.locked
@@ -338,12 +340,17 @@ function WeekGrid({ view }: { view: WeekView }) {
                         style={{
                           top: Math.max(0, top),
                           height,
-                          background: entry.locked
-                            ? "var(--label-4)"
-                            : entry.category
-                              ? categoryColor(entry.category)
-                              : "var(--label-3)",
-                          opacity: entry.locked ? 1 : 0.85,
+                          background: entry.isFree
+                            ? "transparent"
+                            : entry.locked
+                              ? "var(--label-4)"
+                              : entry.category
+                                ? categoryColor(entry.category)
+                                : "var(--label-3)",
+                          border: entry.isFree
+                            ? `1px dashed ${freeColor(entry.allowance)}`
+                            : undefined,
+                          opacity: entry.isFree ? 0.7 : entry.locked ? 1 : 0.85,
                         }}
                         title={entry.title}
                       />
@@ -368,4 +375,11 @@ function WeekGrid({ view }: { view: WeekView }) {
       </div>
     </Group>
   );
+}
+
+/** A free window's colour in the grid, matching the Today timeline. */
+function freeColor(allowance: WeekDay["entries"][number]["allowance"]): string {
+  if (allowance === "deep_focus") return "var(--cat-deep-focus)";
+  if (allowance === "admin_only") return "var(--cat-high-priority-admin)";
+  return "var(--label-3)";
 }

@@ -24,7 +24,12 @@ export async function loadTodayView(now = new Date()): Promise<TodayView> {
   const nowMinutes = minutesOfDay(now, CALENDAR_TIME_ZONE);
 
   const entries = day?.entries ?? [];
-  const work = entries.filter((entry) => !entry.locked && !entry.isReset && !entry.done);
+  // Free slots are shape, not work. Counting them would inflate "blocks
+  // left" and, worse, let an empty window become the live block the
+  // close-out bar offers to finish.
+  const work = entries.filter(
+    (entry) => !entry.locked && !entry.isReset && !entry.done && !entry.isFree,
+  );
 
   const live = work.find(
     (entry) => entry.start <= nowMinutes && entry.end > nowMinutes,
