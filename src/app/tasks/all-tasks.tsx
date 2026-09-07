@@ -3,7 +3,7 @@
 import { useMemo, useOptimistic, useState, useTransition } from "react";
 import { Plus, Search, X } from "lucide-react";
 import { saveSortMode, setImportance } from "@/app/actions";
-import { Content, Header, IconButton, TabBar } from "@/components/chrome";
+import { Content, Header, IconButton, SettingsGear, TabBar } from "@/components/chrome";
 import { QuickAddButton } from "@/components/quick-add";
 import { TaskRow } from "@/components/task-row";
 import { Dot, EmptyState, Group, Segmented, categoryColor } from "@/components/ui";
@@ -100,6 +100,7 @@ export function AllTasks({
               <Plus size={25} strokeWidth={2.2} />
             </IconButton>
             <QuickAddButton />
+            <SettingsGear />
           </div>
         }
       />

@@ -3,9 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronRight, Settings } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { scheduleMyWeek } from "@/app/actions";
-import { ActionBar, Content, Header, IconButton, TabBar } from "@/components/chrome";
+import { ActionBar, Content, Header, SettingsGear, TabBar } from "@/components/chrome";
 import { Button, Dot, EmptyState, Group, Segmented, categoryColor } from "@/components/ui";
 import {
   WEEKDAY_FULL,
@@ -54,11 +54,7 @@ export function WeekScreen({ view }: { view: WeekView }) {
             ? `Next week · ${formatDayShort(view.weekStart)}`
             : `This week · ${formatDayShort(view.weekStart)}`
         }
-        trailing={
-          <IconButton label="Settings" href="/settings" tint="var(--label-2)">
-            <Settings size={22} strokeWidth={2} />
-          </IconButton>
-        }
+        trailing={<SettingsGear />}
       />
 
       <div className="shrink-0 px-4 pb-3">

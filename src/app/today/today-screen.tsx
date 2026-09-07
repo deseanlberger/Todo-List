@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertCircle } from "lucide-react";
 import { scheduleMyWeek } from "@/app/actions";
-import { ActionBar, Content, Header, TabBar } from "@/components/chrome";
+import { ActionBar, Content, Header, SettingsGear, TabBar } from "@/components/chrome";
 import { QuickAddButton } from "@/components/quick-add";
 import { Button, Dot, EmptyState, Group, categoryColor } from "@/components/ui";
 import { CATEGORIES } from "@/lib/domain/categories";
@@ -55,8 +55,9 @@ export function TodayScreen({
                 {view.blocksLeft === 1 ? "block left" : "blocks left"}
               </div>
             </div>
-            <div className="-mr-2">
+            <div className="-mr-2 flex items-center">
               <QuickAddButton />
+              <SettingsGear />
             </div>
           </div>
         }

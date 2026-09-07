@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Content, Header, TabBar } from "@/components/chrome";
+import { Content, Header, SettingsGear, TabBar } from "@/components/chrome";
 import { Dot, EmptyState, Group, Segmented, categoryColor } from "@/components/ui";
 import { CATEGORIES } from "@/lib/domain/categories";
 import { WEEKDAY_SHORT, formatClock12, formatDayLong } from "@/lib/domain/time";
@@ -48,6 +48,7 @@ export function MonthScreen({
             >
               <ChevronRight size={22} strokeWidth={2.5} />
             </Link>
+            <SettingsGear />
           </div>
         }
       />

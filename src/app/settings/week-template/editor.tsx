@@ -2,11 +2,11 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Minus, Plus, Trash2 } from "lucide-react";
 import { saveWeekTemplate } from "@/app/actions";
 import { ActionBar, Content } from "@/components/chrome";
 import { NavBar } from "@/components/nav-bar";
-import { Button, Group, Row, RowValue, Segmented } from "@/components/ui";
+import { Button, Group, Row, RowValue, Segmented, Switch } from "@/components/ui";
 import { WEEKDAY_FULL, formatClock, parseClock } from "@/lib/domain/time";
 import type { WindowAllowance } from "@/lib/domain/types";
 import { templateCapacityBlocks, templateCapacityMinutes } from "@/lib/scheduler";
@@ -53,8 +53,8 @@ export function WeekTemplateEditor({
   const [openDay, setOpenDay] = useState<number | null>(0);
   const [editingTime, setEditingTime] = useState<string | null>(null);
   const [reset, setReset] = useState<10 | 15>(initialReset);
-  const [cap] = useState(initialCap);
-  const [weekendUncapped] = useState(initialWeekendUncapped);
+  const [cap, setCap] = useState(initialCap);
+  const [weekendUncapped, setWeekendUncapped] = useState(initialWeekendUncapped);
   const [saved, setSaved] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -121,10 +121,10 @@ export function WeekTemplateEditor({
 
   return (
     <>
-      <NavBar title="Week template" backLabel="Settings" />
+      <NavBar title="Time blocks" backLabel="Settings" />
 
       <Content className="pt-4">
-        <Group footer="The scheduler only places work inside these windows. Everything outside them stays empty, whatever the calendar says.">
+        <Group footer="The scheduler only places work inside these blocks. Everything outside them stays empty, whatever the calendar says.">
           <Row>
             <span className="t-body flex-1">Available time</span>
             <span className="t-headline tnum" style={{ color: "var(--blue)" }}>
@@ -137,7 +137,7 @@ export function WeekTemplateEditor({
           </Row>
         </Group>
 
-        <Group footer="Tap a day to edit its windows. Tap a window's allowance to cycle what may land there.">
+        <Group footer="Tap a day to open it, then set the hours you are free. Tap a block’s label to cycle what may land in it.">
           {WEEKDAY_FULL.map((label, weekday) => {
           const dayWindows = windows
             .filter((window) => window.weekday === weekday)
@@ -196,7 +196,7 @@ export function WeekTemplateEditor({
 
                           <button
                             type="button"
-                            aria-label="Delete this window"
+                            aria-label="Delete this time block"
                             onClick={() => removeWindow(window.id)}
                             className="pressable -mr-1 flex h-8 w-8 items-center justify-center rounded-full"
                             style={{ color: "var(--red)" }}
@@ -209,7 +209,7 @@ export function WeekTemplateEditor({
                           <Row inset>
                             <input
                               type="time"
-                              aria-label="Window start"
+                              aria-label="Block start"
                               value={window.startTime}
                               onChange={(event) =>
                                 editTime(window.id, "startTime", event.target.value)
@@ -220,7 +220,7 @@ export function WeekTemplateEditor({
                             <span style={{ color: "var(--label-3)" }}>–</span>
                             <input
                               type="time"
-                              aria-label="Window end"
+                              aria-label="Block end"
                               value={window.endTime}
                               onChange={(event) =>
                                 editTime(window.id, "endTime", event.target.value)
@@ -239,7 +239,7 @@ export function WeekTemplateEditor({
                 <Row inset onClick={() => addWindow(weekday)}>
                   <Plus size={19} strokeWidth={2.2} style={{ color: "var(--blue)" }} />
                   <span className="t-body flex-1" style={{ color: "var(--blue)" }}>
-                    Add window
+                    Add a time block
                   </span>
                 </Row>
               ) : null}
@@ -248,12 +248,30 @@ export function WeekTemplateEditor({
           })}
         </Group>
 
-        <Group footer="Changes apply on the next Schedule my week. Blocks already placed are not moved.">
+        <Group footer="At most this many 45-minute deep focus blocks land on a weekday. Changes apply on the next Schedule my week; blocks already placed are not moved.">
           <Row>
             <span className="t-body flex-1">Deep focus cap</span>
-            <RowValue>
-              {cap} per weekday{weekendUncapped ? ", weekend uncapped" : ""}
-            </RowValue>
+            <Stepper
+              ariaLabel="Deep focus blocks per weekday"
+              value={cap}
+              min={1}
+              max={8}
+              onChange={(next) => {
+                touch();
+                setCap(next);
+              }}
+            />
+          </Row>
+          <Row>
+            <span className="t-body flex-1">Weekend uncapped</span>
+            <Switch
+              ariaLabel="Weekend uncapped"
+              checked={weekendUncapped}
+              onChange={(next) => {
+                touch();
+                setWeekendUncapped(next);
+              }}
+            />
           </Row>
           <Row>
             <span className="t-body flex-1">Reset length</span>
@@ -276,7 +294,7 @@ export function WeekTemplateEditor({
 
       <ActionBar>
         <Button
-          label={pending ? "Saving…" : saved ? "Saved" : "Save template"}
+          label={pending ? "Saving…" : saved ? "Saved" : "Save time blocks"}
           kind="filled"
           full
           disabled={pending}
@@ -315,4 +333,54 @@ function asDomain(windows: EditorWindow[]) {
       id: window.id.startsWith("new-") ? undefined : window.id,
       userId: "",
     }));
+}
+
+/** A UIKit-style −/+ stepper. Both halves keep a 44pt tap target. */
+function Stepper({
+  value,
+  min,
+  max,
+  onChange,
+  ariaLabel,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  onChange: (next: number) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <div className="flex shrink-0 items-center gap-2">
+      <span className="t-body tnum w-4 text-right">{value}</span>
+      <div
+        className="flex items-center overflow-hidden rounded-[8px]"
+        role="group"
+        aria-label={ariaLabel}
+      >
+        {([["Decrease", -1, Minus], ["Increase", 1, Plus]] as const).map(
+          ([label, step, Icon]) => {
+            const next = value + step;
+            const disabled = next < min || next > max;
+            return (
+              <button
+                key={label}
+                type="button"
+                aria-label={`${label} ${ariaLabel}`}
+                disabled={disabled}
+                onClick={() => onChange(next)}
+                className="pressable-solid flex h-8 w-11 items-center justify-center"
+                style={{
+                  background: "var(--fill)",
+                  color: disabled ? "var(--label-3)" : "var(--label)",
+                  borderLeft: step === 1 ? "1px solid var(--bg)" : undefined,
+                }}
+              >
+                <Icon size={17} strokeWidth={2.5} />
+              </button>
+            );
+          },
+        )}
+      </div>
+    </div>
+  );
 }

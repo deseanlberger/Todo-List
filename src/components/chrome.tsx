@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, ListChecks, Send, Sun } from "lucide-react";
+import { CalendarDays, ListChecks, Send, Settings, Sun } from "lucide-react";
 
 /**
  * A large title, the way a UIKit navigation bar shows one: the title sits in
@@ -96,6 +96,18 @@ export function ActionBar({ children }: { children: React.ReactNode }) {
     >
       {children}
     </div>
+  );
+}
+
+/**
+ * The settings gear. It lives in the top-right of every root screen, always
+ * in the same place, so Settings is one tap away wherever you are.
+ */
+export function SettingsGear() {
+  return (
+    <IconButton label="Settings" href="/settings" tint="var(--label-2)">
+      <Settings size={22} strokeWidth={2} />
+    </IconButton>
   );
 }
 
