@@ -1,6 +1,4 @@
-import { CALENDAR_TIME_ZONE } from "@/lib/calendar";
 import { repository } from "@/lib/data";
-import { formatClock, minutesOfDay } from "@/lib/domain/time";
 import { loadTodayView } from "@/lib/today-view";
 import { TodayScreen } from "./today-screen";
 
@@ -20,7 +18,6 @@ export default async function TodayPage() {
   return (
     <TodayScreen
       view={view}
-      clock={formatClock(minutesOfDay(now, CALENDAR_TIME_ZONE))}
       resetMinutes={settings.resetMinutes}
       estimatedBlocks={activeTask?.estimatedBlocks ?? 1}
     />

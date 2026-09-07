@@ -2,17 +2,12 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { saveWeekTemplate } from "@/app/actions";
-import { ActionBar, Content, StatusBar } from "@/components/chrome";
-import { PrimaryButton, SegmentedToggle } from "@/components/ui";
-import {
-  WEEKDAY_LABELS,
-  formatClock,
-  formatDuration,
-  formatOpenTime,
-  parseClock,
-} from "@/lib/domain/time";
+import { ActionBar, Content } from "@/components/chrome";
+import { NavBar } from "@/components/nav-bar";
+import { Button, Group, Row, RowValue, Segmented } from "@/components/ui";
+import { WEEKDAY_FULL, formatClock, parseClock } from "@/lib/domain/time";
 import type { WindowAllowance } from "@/lib/domain/types";
 import { templateCapacityBlocks, templateCapacityMinutes } from "@/lib/scheduler";
 
@@ -25,31 +20,29 @@ export interface EditorWindow {
   sortOrder: number;
 }
 
-/** Tapping the chip cycles: ANY → DEEP FOCUS → ADMIN ONLY → NO WORK. */
-const ALLOWANCE_CYCLE: WindowAllowance[] = ["any", "deep_focus", "admin_only", "no_work"];
+/** Tapping the value cycles: Any → Deep focus → Admin only → Closed. */
+const CYCLE: WindowAllowance[] = ["any", "deep_focus", "admin_only", "no_work"];
 
 const ALLOWANCE_LABEL: Record<WindowAllowance, string> = {
-  any: "ANY",
-  deep_focus: "DEEP FOCUS",
-  admin_only: "ADMIN ONLY",
-  no_work: "NO WORK",
+  any: "Any",
+  deep_focus: "Deep focus",
+  admin_only: "Admin only",
+  no_work: "Closed",
 };
 
 const ALLOWANCE_COLOR: Record<WindowAllowance, string> = {
-  any: "var(--text-secondary)",
-  deep_focus: "var(--gold-text)",
-  admin_only: "var(--cat-low-priority-admin-label)",
-  no_work: "var(--urgent)",
+  any: "var(--label-2)",
+  deep_focus: "var(--cat-deep-focus)",
+  admin_only: "var(--cat-low-priority-admin)",
+  no_work: "var(--red)",
 };
 
 export function WeekTemplateEditor({
-  clock,
   initialWindows,
   initialCap,
   initialReset,
   initialWeekendUncapped,
 }: {
-  clock: string;
   initialWindows: EditorWindow[];
   initialCap: number;
   initialReset: 10 | 15;
@@ -65,8 +58,6 @@ export function WeekTemplateEditor({
   const [saved, setSaved] = useState(false);
   const [pending, startTransition] = useTransition();
 
-  // The one gold moment on the screen, because capacity is the number that
-  // matters. Recomputed live as windows are edited.
   const capacity = useMemo(
     () => ({
       minutes: templateCapacityMinutes(asDomain(windows)),
@@ -75,37 +66,33 @@ export function WeekTemplateEditor({
     [windows],
   );
 
+  const touch = () => setSaved(false);
+
   const cycleAllowance = (id: string) => {
-    setSaved(false);
+    touch();
     setWindows((current) =>
       current.map((window) =>
         window.id === id
-          ? {
-              ...window,
-              allowance:
-                ALLOWANCE_CYCLE[
-                  (ALLOWANCE_CYCLE.indexOf(window.allowance) + 1) % ALLOWANCE_CYCLE.length
-                ],
-            }
+          ? { ...window, allowance: CYCLE[(CYCLE.indexOf(window.allowance) + 1) % CYCLE.length] }
           : window,
       ),
     );
   };
 
   const editTime = (id: string, field: "startTime" | "endTime", value: string) => {
-    setSaved(false);
+    touch();
     setWindows((current) =>
       current.map((window) => (window.id === id ? { ...window, [field]: value } : window)),
     );
   };
 
   const removeWindow = (id: string) => {
-    setSaved(false);
+    touch();
     setWindows((current) => current.filter((window) => window.id !== id));
   };
 
   const addWindow = (weekday: number) => {
-    setSaved(false);
+    touch();
     setWindows((current) => [
       ...current,
       {
@@ -134,50 +121,24 @@ export function WeekTemplateEditor({
 
   return (
     <>
-      <StatusBar clock={clock} />
+      <NavBar title="Week template" backLabel="Settings" />
 
-      <header className="shrink-0 px-[22px] pt-1.5 pb-3.5">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="press -ml-1 mb-1.5 flex items-center gap-1 text-text-secondary"
-        >
-          <ChevronLeft size={14} strokeWidth={1.5} />
-          <span className="t-eyebrow">SETTINGS</span>
-        </button>
-        <h1 className="t-screen-title" style={{ fontSize: 32 }}>
-          WEEK TEMPLATE
-        </h1>
-        <p className="t-body mt-2.5 text-text-secondary" style={{ fontSize: 13, lineHeight: 1.45 }}>
-          The scheduler only places work inside these windows. Everything outside them
-          stays empty, whatever the calendar says.
-        </p>
-      </header>
+      <Content className="pt-4">
+        <Group footer="The scheduler only places work inside these windows. Everything outside them stays empty, whatever the calendar says.">
+          <Row>
+            <span className="t-body flex-1">Available time</span>
+            <span className="t-headline tnum" style={{ color: "var(--blue)" }}>
+              {formatHours(capacity.minutes)}
+            </span>
+          </Row>
+          <Row>
+            <span className="t-body flex-1">Blocks before resets</span>
+            <RowValue>{capacity.blocks}</RowValue>
+          </Row>
+        </Group>
 
-      <div className="mx-[22px] mb-3 flex shrink-0 border border-hairline">
-        <div className="flex-1 px-3 py-2.5">
-          <div
-            className="font-display text-[20px] leading-none"
-            style={{ fontFamily: "var(--font-display)", color: "var(--gold-text)" }}
-          >
-            {formatDuration(capacity.minutes)}
-          </div>
-          <div className="t-eyebrow mt-1.5 text-text-faded">AVAILABLE TIME</div>
-        </div>
-        <div className="w-px bg-hairline" />
-        <div className="flex-1 px-3 py-2.5">
-          <div
-            className="font-display text-[20px] leading-none"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            {capacity.blocks}
-          </div>
-          <div className="t-eyebrow mt-1.5 text-text-faded">BEFORE RESETS</div>
-        </div>
-      </div>
-
-      <Content>
-        {WEEKDAY_LABELS.map((label, weekday) => {
+        <Group footer="Tap a day to edit its windows. Tap a window's allowance to cycle what may land there.">
+          {WEEKDAY_FULL.map((label, weekday) => {
           const dayWindows = windows
             .filter((window) => window.weekday === weekday)
             .sort((a, b) => a.startTime.localeCompare(b.startTime));
@@ -185,99 +146,67 @@ export function WeekTemplateEditor({
           const openMinutes = dayWindows
             .filter((window) => window.allowance !== "no_work")
             .reduce(
-              (total, window) =>
-                total + (parseClock(window.endTime) - parseClock(window.startTime)),
+              (total, w) => total + (parseClock(w.endTime) - parseClock(w.startTime)),
               0,
             );
 
           return (
-            <section key={label} className="border-t border-hairline first:border-t-0">
-              <button
-                type="button"
-                onClick={() => setOpenDay(isOpen ? null : weekday)}
-                aria-expanded={isOpen}
-                className="press flex w-full items-center gap-3 py-[13px]"
-              >
-                <span
-                  className="t-day"
-                  style={{
-                    letterSpacing: "0.04em",
-                    color: isOpen ? "var(--text)" : "var(--text-faded)",
-                  }}
-                >
+            <div key={label}>
+              <Row onClick={() => setOpenDay(isOpen ? null : weekday)}>
+                <span className="t-body flex-1" style={{ fontWeight: isOpen ? 600 : 400 }}>
                   {label}
                 </span>
-                <span className="t-meta text-text-faded">
-                  {dayWindows.length} {dayWindows.length === 1 ? "WINDOW" : "WINDOWS"}
-                </span>
-                <span className="t-meta flex-1 text-right text-text-secondary">
-                  {formatOpenTime(openMinutes)}
-                </span>
+                <RowValue>{openMinutes === 0 ? "Closed" : formatHours(openMinutes)}</RowValue>
                 {isOpen ? (
-                  <ChevronDown size={14} strokeWidth={1.5} className="text-text-faded" />
+                  <ChevronDown size={17} strokeWidth={2.5} style={{ color: "var(--label-3)" }} />
                 ) : (
-                  <ChevronRight size={14} strokeWidth={1.5} className="text-text-faded" />
+                  <ChevronRight size={17} strokeWidth={2.5} style={{ color: "var(--label-3)" }} />
                 )}
-              </button>
+              </Row>
 
-              {isOpen ? (
-                <div className="pb-3 pl-11">
-                  {dayWindows.map((window) => {
-                    const minutes =
-                      window.allowance === "no_work"
-                        ? 0
-                        : parseClock(window.endTime) - parseClock(window.startTime);
+              {isOpen
+                ? dayWindows.map((window) => {
                     const editing = editingTime === window.id;
+
                     return (
                       <div key={window.id}>
-                        <div className="flex items-center gap-2.5 py-[7px]">
-                          {/*
-                            The design specifies the range as 92px of 11px
-                            Roboto Mono, which is exactly wide enough to read
-                            "05:30 – 08:00" and far too narrow for a native
-                            time input. So the range stays type, and tapping
-                            it opens a real picker on the row below.
-                          */}
+                        <Row inset>
                           <button
                             type="button"
                             onClick={() => setEditingTime(editing ? null : window.id)}
                             aria-expanded={editing}
-                            aria-label={`Edit the ${window.startTime} to ${window.endTime} window`}
-                            className="press t-meta-11 w-[92px] shrink-0 text-left"
-                            style={{ color: editing ? "var(--gold-text)" : "var(--text)" }}
+                            className="t-body tnum shrink-0 whitespace-nowrap text-left"
+                            style={{ color: editing ? "var(--blue)" : "var(--label)" }}
                           >
-                            {window.startTime} – {window.endTime}
+                            {to12(window.startTime)} – {to12(window.endTime)}
                           </button>
 
                           <button
                             type="button"
                             onClick={() => cycleAllowance(window.id)}
-                            className="press t-cat shrink-0 rounded-[2px] px-[9px] py-[5px]"
+                            className="pressable-solid t-footnote ml-auto shrink-0 truncate rounded-full px-2.5 py-1"
                             style={{
-                              border: `1px solid ${ALLOWANCE_COLOR[window.allowance]}`,
+                              background: "var(--fill)",
                               color: ALLOWANCE_COLOR[window.allowance],
-                              letterSpacing: "0.16em",
+                              fontWeight: 500,
                             }}
                           >
                             {ALLOWANCE_LABEL[window.allowance]}
                           </button>
 
-                          <span className="t-meta flex-1 text-right text-text-faded">
-                            {minutes === 0 ? "—" : formatDuration(minutes)}
-                          </span>
-
                           <button
                             type="button"
                             aria-label="Delete this window"
                             onClick={() => removeWindow(window.id)}
-                            className="press flex h-11 w-6 items-center justify-center text-text-faded"
+                            className="pressable -mr-1 flex h-8 w-8 items-center justify-center rounded-full"
+                            style={{ color: "var(--red)" }}
                           >
-                            <Trash2 size={14} strokeWidth={1.5} />
+                            <Trash2 size={16} strokeWidth={2} />
                           </button>
-                        </div>
+                        </Row>
 
                         {editing ? (
-                          <div className="mb-2 flex items-center gap-2 pb-1">
+                          <Row inset>
                             <input
                               type="time"
                               aria-label="Window start"
@@ -285,9 +214,10 @@ export function WeekTemplateEditor({
                               onChange={(event) =>
                                 editTime(window.id, "startTime", event.target.value)
                               }
-                              className="t-meta-11 flex-1 rounded-[2px] border border-hairline bg-panel px-2 py-[7px] text-text outline-none"
+                              className="t-body tnum flex-1 rounded-[8px] px-2 py-1.5 outline-none"
+                              style={{ background: "var(--fill)" }}
                             />
-                            <span className="t-meta-11 text-text-faded">–</span>
+                            <span style={{ color: "var(--label-3)" }}>–</span>
                             <input
                               type="time"
                               aria-label="Window end"
@@ -295,68 +225,82 @@ export function WeekTemplateEditor({
                               onChange={(event) =>
                                 editTime(window.id, "endTime", event.target.value)
                               }
-                              className="t-meta-11 flex-1 rounded-[2px] border border-hairline bg-panel px-2 py-[7px] text-text outline-none"
+                              className="t-body tnum flex-1 rounded-[8px] px-2 py-1.5 outline-none"
+                              style={{ background: "var(--fill)" }}
                             />
-                          </div>
+                          </Row>
                         ) : null}
                       </div>
                     );
-                  })}
+                  })
+                : null}
 
-                  <button
-                    type="button"
-                    onClick={() => addWindow(weekday)}
-                    className="press flex items-center gap-2 py-[7px]"
-                    style={{ color: "var(--gold-text)" }}
-                  >
-                    <Plus size={14} strokeWidth={1.5} />
-                    <span className="t-cat" style={{ letterSpacing: "0.16em" }}>
-                      ADD WINDOW
-                    </span>
-                  </button>
-                </div>
+              {isOpen ? (
+                <Row inset onClick={() => addWindow(weekday)}>
+                  <Plus size={19} strokeWidth={2.2} style={{ color: "var(--blue)" }} />
+                  <span className="t-body flex-1" style={{ color: "var(--blue)" }}>
+                    Add window
+                  </span>
+                </Row>
               ) : null}
-            </section>
+            </div>
           );
-        })}
+          })}
+        </Group>
 
-        <div className="mt-2 flex items-center justify-between border-t border-hairline py-[13px]">
-          <span className="t-section text-text-faded">DEEP FOCUS CAP</span>
-          <span className="t-meta text-text-secondary">
-            {cap} PER WEEKDAY · WEEKEND {weekendUncapped ? "UNCAPPED" : `CAPPED AT ${cap}`}
-          </span>
-        </div>
-
-        <div className="flex items-center justify-between border-t border-hairline py-[13px]">
-          <span className="t-section text-text-faded">RESET LENGTH</span>
-          <SegmentedToggle
-            ariaLabel="Reset length"
-            value={String(reset)}
-            options={[
-              { value: "10", label: "10 MIN" },
-              { value: "15", label: "15 MIN" },
-            ]}
-            onChange={(value) => {
-              setSaved(false);
-              setReset(Number(value) as 10 | 15);
-            }}
-          />
-        </div>
-        <div className="h-3" />
+        <Group footer="Changes apply on the next Schedule my week. Blocks already placed are not moved.">
+          <Row>
+            <span className="t-body flex-1">Deep focus cap</span>
+            <RowValue>
+              {cap} per weekday{weekendUncapped ? ", weekend uncapped" : ""}
+            </RowValue>
+          </Row>
+          <Row>
+            <span className="t-body flex-1">Reset length</span>
+            <Segmented
+              ariaLabel="Reset length"
+              className="w-[140px]"
+              value={String(reset)}
+              options={[
+                { value: "10", label: "10 min" },
+                { value: "15", label: "15 min" },
+              ]}
+              onChange={(value: string) => {
+                touch();
+                setReset(Number(value) as 10 | 15);
+              }}
+            />
+          </Row>
+        </Group>
       </Content>
 
       <ActionBar>
-        <p className="t-meta mb-2.5 text-text-faded">
-          CHANGES APPLY ON THE NEXT SCHEDULE MY WEEK · PLACED BLOCKS ARE NOT MOVED
-        </p>
-        <PrimaryButton
-          label={saved ? "SAVED" : "SAVE TEMPLATE"}
+        <Button
+          label={pending ? "Saving…" : saved ? "Saved" : "Save template"}
+          kind="filled"
+          full
+          disabled={pending}
           onClick={save}
-          pending={pending}
         />
       </ActionBar>
     </>
   );
+}
+
+/** `7h 30m`, or `7h` on the hour. */
+function formatHours(minutes: number): string {
+  if (minutes <= 0) return "Closed";
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) return `${rest}m`;
+  return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`;
+}
+
+/** `5:30 AM` from a 24-hour `HH:MM`. */
+function to12(clock: string): string {
+  const [hour24, minute] = clock.split(":").map(Number);
+  const hour = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return `${hour}:${String(minute).padStart(2, "0")} ${hour24 < 12 ? "AM" : "PM"}`;
 }
 
 function asDomain(windows: EditorWindow[]) {

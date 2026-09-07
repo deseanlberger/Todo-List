@@ -33,6 +33,21 @@ export async function loadTodayView(now = new Date()): Promise<TodayView> {
   const tasks = await repository().listTasks();
   const placedToday = new Set(entries.map((entry) => entry.taskId).filter(Boolean));
 
+  const nextUp =
+    week.days
+      .filter((entry) => entry.date > today)
+      .flatMap((entry) =>
+        entry.entries
+          .filter((item) => !item.locked && !item.isReset && item.taskId)
+          .map((item) => ({
+            title: item.title,
+            date: entry.date,
+            dayIndex: entry.dayIndex,
+            start: item.start,
+          })),
+      )
+      .sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start)[0] ?? null;
+
   return {
     date: today,
     dayIndex: day?.dayIndex ?? 0,
@@ -51,5 +66,6 @@ export async function loadTodayView(now = new Date()): Promise<TodayView> {
     swapCandidates: tasks.filter(
       (task) => task.status !== "done" && CATEGORIES[task.category].schedules,
     ),
+    nextUp,
   };
 }

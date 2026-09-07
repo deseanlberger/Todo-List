@@ -3,10 +3,16 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { ChevronRight, Settings } from "lucide-react";
 import { scheduleMyWeek } from "@/app/actions";
-import { Content, Header, StatusBar, TabBar } from "@/components/chrome";
-import { EmptyState, PrimaryButton, SectionLabel, railColor } from "@/components/ui";
-import { formatClock, formatEyebrowDate } from "@/lib/domain/time";
+import { ActionBar, Content, Header, IconButton, TabBar } from "@/components/chrome";
+import { Button, Dot, EmptyState, Group, Segmented, categoryColor } from "@/components/ui";
+import {
+  WEEKDAY_FULL,
+  WEEKDAY_SHORT,
+  formatClock12,
+  formatDayShort,
+} from "@/lib/domain/time";
 import {
   DAY_SPAN_MINUTES,
   DAY_START_MINUTES,
@@ -14,11 +20,11 @@ import {
   type WeekView,
 } from "@/lib/view-types";
 
-type Mode = "rail" | "grid";
+type Mode = "load" | "grid";
 
-export function WeekScreen({ view, clock }: { view: WeekView; clock: string }) {
+export function WeekScreen({ view }: { view: WeekView }) {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("rail");
+  const [mode, setMode] = useState<Mode>("load");
   const [selected, setSelected] = useState(view.todayIndex ?? 0);
   const [pending, startTransition] = useTransition();
 
@@ -31,68 +37,44 @@ export function WeekScreen({ view, clock }: { view: WeekView; clock: string }) {
     });
   };
 
-  const capReadout = (target: WeekDay) => {
+  const capLabel = (target: WeekDay) => {
     const weekend = target.dayIndex >= 5;
-    if (weekend && view.weekendUncapped) {
-      return `DF ${target.deepFocusBlocks} · UNCAPPED`;
-    }
-    return `DF ${target.deepFocusBlocks}/${view.deepFocusCap}`;
+    if (weekend && view.weekendUncapped) return `${target.deepFocusBlocks} focus`;
+    return `${target.deepFocusBlocks}/${view.deepFocusCap} focus`;
   };
 
   return (
     <>
-      <StatusBar clock={clock} />
       <Header
-        eyebrow={`WEEK OF ${formatEyebrowDate(view.weekStart, 0).split(" · ")[1]}`}
-        title="THE WEEK"
+        title="Week"
+        subtitle={`Week of ${formatDayShort(view.weekStart)}${
+          view.todayIndex === null ? " · next week" : ""
+        }`}
         trailing={
-          <Link href="/settings" className="press block text-right">
-            <div className="t-meta text-text-secondary">
-              {view.todayIndex !== null
-                ? capReadout(view.days[view.todayIndex]) + " TODAY"
-                : "NOT THIS WEEK"}
-            </div>
-            <div className="t-eyebrow mt-1 text-text-faded">
-              CAP ACTIVE MON–{view.weekendUncapped ? "FRI" : "SUN"}
-            </div>
-          </Link>
+          <IconButton label="Settings" href="/settings" tint="var(--label-2)">
+            <Settings size={22} strokeWidth={2} />
+          </IconButton>
         }
       />
 
-      <div className="shrink-0 px-[22px] pb-3">
-        <PrimaryButton
-          label={
-            view.hasPending
-              ? "REVIEW THE PENDING CHANGES"
-              : "SCHEDULE MY WEEK"
-          }
-          pending={pending}
-          onClick={view.hasPending ? () => router.push("/review") : run}
+      <div className="shrink-0 px-4 pb-3">
+        <Segmented
+          ariaLabel="Week view"
+          options={[
+            { value: "load" as Mode, label: "Load" },
+            { value: "grid" as Mode, label: "Grid" },
+          ]}
+          value={mode}
+          onChange={setMode}
         />
-        <div className="mt-2 flex gap-1.5">
-          {(["rail", "grid"] as Mode[]).map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setMode(value)}
-              className="press t-chip flex-1 rounded-[2px] py-[7px] text-center"
-              style={
-                mode === value
-                  ? { border: "1px solid var(--hairline)", color: "var(--text)" }
-                  : { border: "1px solid transparent", color: "var(--text-faded)" }
-              }
-            >
-              {value === "rail" ? "LOAD" : "GRID"}
-            </button>
-          ))}
-        </div>
       </div>
 
       <Content>
         {mode === "grid" ? <WeekGrid view={view} /> : null}
 
-        {mode === "rail"
-          ? view.days.map((entry) => {
+        {mode === "load" ? (
+          <Group header="Committed time by day">
+            {view.days.map((entry) => {
               const active = entry.dayIndex === selected;
               return (
                 <button
@@ -100,163 +82,170 @@ export function WeekScreen({ view, clock }: { view: WeekView; clock: string }) {
                   type="button"
                   onClick={() => setSelected(entry.dayIndex)}
                   aria-pressed={active}
-                  className="press -mx-[22px] flex w-[calc(100%+44px)] items-center gap-3 border-t border-hairline px-[22px] py-[11px]"
+                  className="ios-row pressable w-full"
                   style={
                     active
-                      ? {
-                          background: "var(--card-navy)",
-                          borderTop: "1px solid var(--antique-gold)",
-                          borderBottom: "1px solid var(--antique-gold)",
-                        }
+                      ? { background: "color-mix(in srgb, var(--blue) 8%, transparent)" }
                       : undefined
                   }
                 >
                   <span
-                    className="t-day w-9 shrink-0"
+                    className="t-subhead w-9 shrink-0"
                     style={{
-                      fontSize: active ? 19 : 17,
-                      color: active ? "#FFFFFF" : "var(--text-faded)",
+                      fontWeight: active || entry.isToday ? 600 : 400,
+                      color: entry.isToday ? "var(--blue)" : "var(--label)",
                     }}
                   >
-                    {entry.label}
+                    {WEEKDAY_SHORT[entry.dayIndex]}
                   </span>
-                  <LoadMeter day={entry} height={active ? 14 : 12} />
+                  <LoadMeter day={entry} />
                   <span
-                    className="t-meta w-[70px] shrink-0 text-right"
-                    style={{
-                      color: active ? "var(--antique-gold)" : "var(--text-faded)",
-                    }}
+                    className="t-caption tnum w-[60px] shrink-0 text-right"
+                    style={{ color: "var(--label-2)" }}
                   >
-                    {capReadout(entry)}
+                    {capLabel(entry)}
                   </span>
+                  <ChevronRight
+                    size={17}
+                    strokeWidth={2.5}
+                    className="-mr-1 shrink-0"
+                    style={{ color: "var(--label-3)" }}
+                  />
                 </button>
               );
-            })
-          : null}
+            })}
+          </Group>
+        ) : null}
 
-        {mode === "rail" && day ? (
-          <>
-            <SectionLabel
-              label={`${formatEyebrowDate(day.date, day.dayIndex)} — ${day.blockCount} ${
-                day.blockCount === 1 ? "BLOCK" : "BLOCKS"
-              } · ${day.resetCount} ${day.resetCount === 1 ? "RESET" : "RESETS"}`}
-            />
-            {day.entries.length === 0 ? (
-              <EmptyState>Nothing on this day yet.</EmptyState>
+        {mode === "load" && day ? (
+          <Group
+            header={`${WEEKDAY_FULL[day.dayIndex]} · ${day.blockCount} ${
+              day.blockCount === 1 ? "block" : "blocks"
+            }, ${day.resetCount} ${day.resetCount === 1 ? "reset" : "resets"}`}
+          >
+            {day.entries.filter((entry) => !entry.isReset).length === 0 ? (
+              <div className="ios-row">
+                <span className="t-body" style={{ color: "var(--label-2)" }}>
+                  Nothing on this day
+                </span>
+              </div>
             ) : null}
             {day.entries
               .filter((entry) => !entry.isReset)
               .map((entry, index) => (
-                <div
-                  key={`${entry.title}-${index}`}
-                  className="mb-1.5 flex items-center gap-2.5 rounded-[2px] border px-[11px] py-[9px]"
-                  style={{
-                    background: entry.locked ? "var(--panel-inert)" : "var(--panel)",
-                    borderColor: "var(--hairline)",
-                    borderStyle: entry.locked ? "dashed" : "solid",
-                  }}
-                >
+                <div key={`${entry.title}-${index}`} className="ios-row ios-row-inset">
                   <span
-                    className="t-meta w-[42px] shrink-0"
-                    style={{
-                      color: entry.locked ? "var(--text-faded)" : "var(--text-secondary)",
-                    }}
+                    className="t-footnote tnum w-[52px] shrink-0 text-right"
+                    style={{ color: "var(--label-2)" }}
                   >
-                    {formatClock(entry.start)}
+                    {formatClock12(entry.start)}
                   </span>
+                  {entry.category ? (
+                    <Dot color={categoryColor(entry.category)} />
+                  ) : (
+                    <span
+                      aria-hidden="true"
+                      className="h-[10px] w-[10px] shrink-0 rounded-full"
+                      style={{ border: "1.5px dashed var(--label-3)" }}
+                    />
+                  )}
                   <span
-                    className="t-title min-w-0 flex-1 truncate"
+                    className="t-body min-w-0 flex-1 truncate"
                     style={{
-                      fontSize: 14,
-                      color: entry.locked ? "var(--text-faded)" : "var(--text)",
+                      color: entry.locked ? "var(--label-2)" : "var(--label)",
                       textDecoration: entry.done ? "line-through" : undefined,
-                      textDecorationColor: "var(--text-faded)",
                     }}
                   >
                     {entry.title}
                   </span>
-                  <span
-                    className="t-meta shrink-0"
-                    style={{ color: tagColor(entry.locked, entry.urgent) }}
-                  >
-                    {entry.locked
-                      ? "LOCKED"
-                      : entry.urgent
-                        ? "URGENT"
-                        : entry.location === "gym"
-                          ? "GYM"
-                          : "HOME"}
-                  </span>
+                  {entry.urgent ? (
+                    <span className="t-caption shrink-0" style={{ color: "var(--red)" }}>
+                      Urgent
+                    </span>
+                  ) : null}
                 </div>
               ))}
-          </>
+          </Group>
         ) : null}
 
         {view.didntFit.length > 0 ? (
-          <>
-            <SectionLabel
-              label={`DIDN'T FIT · ${view.didntFit.length}`}
-              color="var(--urgent)"
-              hint="OPEN TO RE-RATE OR RE-DATE"
-            />
+          <Group
+            header={`Didn't fit · ${view.didntFit.length}`}
+            footer="Open one to re-rate it, move its due date, or shrink the estimate."
+          >
             {view.didntFit.map((task) => (
               <Link
                 key={task.id}
                 href={`/tasks/${task.id}`}
-                className="press mb-1.5 flex overflow-hidden rounded-[2px] border border-hairline bg-panel"
+                className="ios-row ios-row-inset pressable"
               >
-                <span
-                  aria-hidden="true"
-                  className="w-[3px] shrink-0"
-                  style={{ background: railColor(task.category) }}
-                />
-                <span className="flex min-w-0 flex-1 items-center justify-between gap-3 px-[11px] py-[9px]">
-                  <span className="t-title min-w-0 flex-1 truncate" style={{ fontSize: 14 }}>
-                    {task.title}
-                  </span>
-                  <span className="t-meta shrink-0 text-text-faded">
-                    {task.estimatedBlocks} BLK
-                  </span>
+                <Dot color={categoryColor(task.category)} />
+                <span className="t-body min-w-0 flex-1 truncate">{task.title}</span>
+                <span className="t-subhead tnum shrink-0" style={{ color: "var(--label-2)" }}>
+                  {task.estimatedBlocks} blk
                 </span>
+                <ChevronRight
+                  size={17}
+                  strokeWidth={2.5}
+                  className="-mr-1 shrink-0"
+                  style={{ color: "var(--label-3)" }}
+                />
               </Link>
             ))}
-          </>
+          </Group>
         ) : null}
-        <div className="h-4" />
+
+        {view.days.every((entry) => entry.blockCount === 0) && view.didntFit.length === 0 ? (
+          <EmptyState title="Nothing scheduled yet" detail="Tap Schedule my week below." />
+        ) : null}
       </Content>
+
+      <ActionBar>
+        <Button
+          label={
+            pending
+              ? "Working…"
+              : view.hasPending
+                ? "Review pending changes"
+                : "Schedule my week"
+          }
+          kind="filled"
+          full
+          disabled={pending}
+          onClick={view.hasPending ? () => router.push("/review") : run}
+        />
+      </ActionBar>
 
       <TabBar />
     </>
   );
 }
 
-function tagColor(locked: boolean, urgent: boolean): string {
-  if (locked) return "var(--text-faded)";
-  if (urgent) return "var(--urgent)";
-  return "var(--text-faded)";
-}
-
-/**
- * A day's committed time as proportional segments: locked calendar time,
- * then each scheduled block in its category colour, then the open remainder.
- */
-function LoadMeter({ day, height }: { day: WeekDay; height: number }) {
+/** A day's committed time: locked calendar time, then each block, then open. */
+function LoadMeter({ day }: { day: WeekDay }) {
   const segments = day.entries
     .filter((entry) => !entry.isReset)
     .map((entry) => ({
       minutes: Math.max(0, entry.end - entry.start),
       color: entry.locked
-        ? "var(--hairline-2)"
+        ? "var(--label-4)"
         : entry.category
-          ? railColor(entry.category)
-          : "var(--text-faded)",
+          ? categoryColor(entry.category)
+          : "var(--label-3)",
     }));
 
   const used = segments.reduce((total, segment) => total + segment.minutes, 0);
   const free = Math.max(0, DAY_SPAN_MINUTES - used);
 
+  // One continuous track with the segments butted together. Rounding each
+  // segment separately turns short blocks into dots and the bar stops
+  // reading as a bar.
   return (
-    <span className="flex flex-1 gap-[2px]" style={{ height }} aria-hidden="true">
+    <span
+      className="flex h-[6px] flex-1 overflow-hidden rounded-full"
+      style={{ background: "var(--fill)" }}
+      aria-hidden="true"
+    >
       {segments.map((segment, index) => (
         <span
           key={index}
@@ -268,113 +257,111 @@ function LoadMeter({ day, height }: { day: WeekDay; height: number }) {
           }}
         />
       ))}
-      <span style={{ background: "var(--panel)", flexGrow: free, flexBasis: 0 }} />
+      <span style={{ flexGrow: free, flexBasis: 0 }} />
     </span>
   );
 }
 
-/**
- * The 7-column read-only overview. Deliberately too dense to edit at 50px a
- * column — editing happens in the day view.
- */
+/** A read-only overview of the whole week. Too dense to edit at this size. */
 function WeekGrid({ view }: { view: WeekView }) {
-  const GRID_HEIGHT = 392;
+  const HEIGHT = 380;
   const toOffset = (minutes: number) =>
-    ((minutes - DAY_START_MINUTES) / DAY_SPAN_MINUTES) * GRID_HEIGHT;
+    ((minutes - DAY_START_MINUTES) / DAY_SPAN_MINUTES) * HEIGHT;
 
   return (
-    <div className="mb-4">
-      <div className="mb-1.5 flex">
-        <span className="w-[26px] shrink-0" />
-        {view.days.map((day) => (
-          <span
-            key={day.date}
-            className="t-tab flex-1 text-center"
-            style={{ color: day.isToday ? "var(--gold-text)" : "var(--text-faded)" }}
-          >
-            {day.label.slice(0, 1)}
-          </span>
-        ))}
-      </div>
-
-      <div className="flex">
-        <div
-          className="relative w-[26px] shrink-0"
-          style={{ height: GRID_HEIGHT }}
-          aria-hidden="true"
-        >
-          {[6, 9, 12, 15, 18, 21].map((hour) => (
+    <Group header="The whole week">
+      <div className="px-3 pt-3 pb-2">
+        <div className="mb-1.5 flex">
+          <span className="w-[26px] shrink-0" />
+          {view.days.map((day) => (
             <span
-              key={hour}
-              className="t-gutter absolute right-1.5 text-text-faded"
-              style={{ top: toOffset(hour * 60) - 5, fontSize: 9 }}
+              key={day.date}
+              className="t-caption2 flex-1 text-center"
+              style={{
+                color: day.isToday ? "var(--blue)" : "var(--label-2)",
+                fontWeight: day.isToday ? 600 : 400,
+              }}
             >
-              {String(hour).padStart(2, "0")}
+              {WEEKDAY_SHORT[day.dayIndex].charAt(0)}
             </span>
           ))}
         </div>
 
-        <div
-          className="relative flex flex-1 overflow-hidden rounded-[2px] border border-hairline"
-          style={{
-            height: GRID_HEIGHT,
-            backgroundImage:
-              "repeating-linear-gradient(180deg, transparent 0 64px, var(--grid-line) 64px 65px)",
-          }}
-        >
-          {view.days.map((day) => (
-            <div
-              key={day.date}
-              className="relative flex-1 border-l border-grid-line first:border-l-0"
-              style={{ background: day.isToday ? "var(--today-wash)" : undefined }}
-            >
-              {day.entries
-                .filter((entry) => !entry.isReset)
-                .map((entry, index) => {
-                  const top = toOffset(entry.start);
-                  const height = Math.max(
-                    6,
-                    ((entry.end - entry.start) / DAY_SPAN_MINUTES) * GRID_HEIGHT,
-                  );
-                  if (top + height < 0 || top > GRID_HEIGHT) return null;
-                  return (
-                    <span
-                      key={index}
-                      className="absolute left-[2px] right-[2px] flex overflow-hidden"
-                      style={{
-                        top: Math.max(0, top),
-                        height,
-                        background: entry.locked ? "var(--panel-inert)" : "var(--panel)",
-                        border: entry.locked
-                          ? "1px dashed var(--hairline-2)"
-                          : "1px solid var(--hairline)",
-                      }}
-                      title={entry.title}
-                    >
-                      {entry.category ? (
-                        <span
-                          className="w-[3px] shrink-0"
-                          style={{ background: railColor(entry.category) }}
-                        />
-                      ) : null}
-                    </span>
-                  );
-                })}
+        <div className="flex">
+          <div className="relative w-[26px] shrink-0" style={{ height: HEIGHT }} aria-hidden="true">
+            {[6, 9, 12, 15, 18, 21].map((hour) => (
+              <span
+                key={hour}
+                className="t-caption2 tnum absolute right-1.5"
+                style={{ top: toOffset(hour * 60) - 5, color: "var(--label-3)" }}
+              >
+                {hour % 12 === 0 ? 12 : hour % 12}
+              </span>
+            ))}
+          </div>
 
-              {day.isToday ? (
-                <span
-                  className="absolute left-0 right-0 h-px"
-                  style={{
-                    top: toOffset(view.nowMinutes),
-                    background: "var(--gold)",
-                  }}
-                  aria-hidden="true"
-                />
-              ) : null}
-            </div>
-          ))}
+          <div
+            className="relative flex flex-1 overflow-hidden rounded-[6px]"
+            style={{
+              height: HEIGHT,
+              backgroundImage:
+                "repeating-linear-gradient(180deg, transparent 0 62px, var(--separator) 62px 62.5px)",
+            }}
+          >
+            {view.days.map((day) => (
+              <div
+                key={day.date}
+                className="relative flex-1"
+                style={{
+                  background: day.isToday
+                    ? "color-mix(in srgb, var(--blue) 6%, transparent)"
+                    : undefined,
+                }}
+              >
+                {day.entries
+                  .filter((entry) => !entry.isReset)
+                  .map((entry, index) => {
+                    const top = toOffset(entry.start);
+                    const height = Math.max(
+                      5,
+                      ((entry.end - entry.start) / DAY_SPAN_MINUTES) * HEIGHT,
+                    );
+                    if (top + height < 0 || top > HEIGHT) return null;
+                    return (
+                      <span
+                        key={index}
+                        className="absolute left-[2px] right-[2px] rounded-[3px]"
+                        style={{
+                          top: Math.max(0, top),
+                          height,
+                          background: entry.locked
+                            ? "var(--label-4)"
+                            : entry.category
+                              ? categoryColor(entry.category)
+                              : "var(--label-3)",
+                          opacity: entry.locked ? 1 : 0.85,
+                        }}
+                        title={entry.title}
+                      />
+                    );
+                  })}
+
+                {day.isToday ? (
+                  <span
+                    className="absolute left-0 right-0"
+                    style={{
+                      top: toOffset(view.nowMinutes),
+                      height: 1.5,
+                      background: "var(--red)",
+                    }}
+                    aria-hidden="true"
+                  />
+                ) : null}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </Group>
   );
 }

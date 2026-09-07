@@ -1,45 +1,41 @@
 "use client";
 
 import { useMemo, useOptimistic, useState, useTransition } from "react";
-import Link from "next/link";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 import { saveSortMode, setImportance } from "@/app/actions";
-import { Content, Header, StatusBar, TabBar } from "@/components/chrome";
+import { Content, Header, IconButton, TabBar } from "@/components/chrome";
 import { TaskRow } from "@/components/task-row";
-import { Chip, EmptyState, SectionLabel, labelColor } from "@/components/ui";
+import { Dot, EmptyState, Group, Segmented, categoryColor } from "@/components/ui";
 import { CATEGORIES, CATEGORY_ORDER } from "@/lib/domain/categories";
 import { isUrgent } from "@/lib/domain/priority";
 import type { SortMode, Task, TaskCategory } from "@/lib/domain/types";
 
-const SORT_CHIPS: { value: SortMode; label: string }[] = [
-  { value: "category", label: "CATEGORY" },
-  { value: "due", label: "DUE DATE" },
-  { value: "stars", label: "STARS" },
+const SORT_OPTIONS: { value: SortMode; label: string }[] = [
+  { value: "category", label: "Category" },
+  { value: "due", label: "Due date" },
+  { value: "stars", label: "Importance" },
 ];
 
-const SORT_EXPLANATION: Record<SortMode, string> = {
-  category: "GROUPED BY CATEGORY · DEEP FOCUS OUTRANKS ADMIN AT EQUAL SCORES",
-  due: "SORTED BY DUE DATE · ANYTHING INSIDE 48H READS URGENT",
-  stars: "SORTED BY YOUR STAR RATING · TAP ANY STAR TO RE-RATE",
+const SORT_FOOTNOTE: Record<SortMode, string> = {
+  category: "Grouped by category. Deep focus outranks admin at equal scores.",
+  due: "Soonest first, no date last. Anything inside 48 hours reads red.",
+  stars: "Most important first. Tap any star to re-rate.",
 };
 
-interface Group {
+interface ListGroup {
   key: string;
-  label: string;
-  color?: string;
-  count: number;
+  header: string;
+  category: TaskCategory | null;
   tasks: Task[];
 }
 
 export function AllTasks({
   tasks,
-  clock,
   timeZone,
   initialSort,
   nowIso,
 }: {
   tasks: Task[];
-  clock: string;
   timeZone: string;
   initialSort: SortMode;
   nowIso: string;
@@ -49,7 +45,7 @@ export function AllTasks({
   const [searching, setSearching] = useState(false);
   const [, startTransition] = useTransition();
 
-  // Re-rating a star must feel instant; the write follows behind.
+  // Re-rating must feel instant; the write follows behind.
   const [optimistic, applyRating] = useOptimistic(
     tasks,
     (current: Task[], change: { id: string; value: number }) =>
@@ -59,15 +55,11 @@ export function AllTasks({
   );
 
   const now = useMemo(() => new Date(nowIso), [nowIso]);
-
-  const open = useMemo(
-    () => optimistic.filter((task) => task.status !== "done"),
-    [optimistic],
-  );
+  const open = useMemo(() => optimistic.filter((t) => t.status !== "done"), [optimistic]);
 
   const visible = useMemo(() => {
-    if (!query.trim()) return open;
     const needle = query.trim().toLowerCase();
+    if (!needle) return open;
     return open.filter((task) => task.title.toLowerCase().includes(needle));
   }, [open, query]);
 
@@ -89,81 +81,76 @@ export function AllTasks({
 
   return (
     <>
-      <StatusBar clock={clock} />
       <Header
-        eyebrow={`${open.length} OPEN`}
-        title="ALL TASKS"
-        padding="px-5"
+        title="Tasks"
+        subtitle={`${open.length} open`}
         trailing={
-          <div className="flex items-center gap-1">
-            <Link
-              href="/tasks/new"
-              aria-label="Add a task"
-              className="press flex h-11 w-9 items-center justify-center text-text-secondary"
-            >
-              <Plus size={20} strokeWidth={1.5} />
-            </Link>
-            <button
-              type="button"
-              aria-label="Search tasks"
-              aria-expanded={searching}
+          <div className="-mr-2 flex items-center">
+            <IconButton
+              label={searching ? "Close search" : "Search tasks"}
               onClick={() => {
                 setSearching((value) => !value);
                 if (searching) setQuery("");
               }}
-              className="press -mr-2 flex h-11 w-9 items-center justify-center"
-              style={{ color: searching ? "var(--gold-text)" : "var(--text-secondary)" }}
             >
-              <Search size={20} strokeWidth={1.5} />
-            </button>
+              {searching ? <X size={22} /> : <Search size={21} strokeWidth={2.2} />}
+            </IconButton>
+            <IconButton label="Add a task" href="/tasks/new">
+              <Plus size={25} strokeWidth={2.2} />
+            </IconButton>
           </div>
         }
       />
 
-      <div className="shrink-0 px-5">
+      <div className="shrink-0 px-4 pb-3">
         {searching ? (
           <input
             autoFocus
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="FILTER BY TITLE"
-            aria-label="Filter tasks by title"
-            className="t-chip mb-2 w-full rounded-[2px] border border-hairline bg-panel px-3 py-[9px] text-text outline-none placeholder:text-text-faded"
+            placeholder="Search"
+            aria-label="Search tasks"
+            className="t-body mb-3 w-full rounded-[10px] px-3 py-2 outline-none"
+            style={{ background: "var(--fill)", color: "var(--label)" }}
           />
         ) : null}
 
-        <div className="flex gap-1.5">
-          {SORT_CHIPS.map((chip) => (
-            <Chip
-              key={chip.value}
-              label={chip.label}
-              selected={sort === chip.value}
-              onClick={() => chooseSort(chip.value)}
-            />
-          ))}
-        </div>
-        {/* At 9px this runs to ~357px, wider than the 350px the frame
-            allows, so it wraps to a second line rather than being cut. */}
-        <p
-          className="t-meta mt-2.5 mb-3 text-text-faded"
-          style={{ lineHeight: 1.5 }}
-        >
-          {SORT_EXPLANATION[sort]}
+        <Segmented
+          ariaLabel="Sort tasks"
+          options={SORT_OPTIONS}
+          value={sort}
+          onChange={chooseSort}
+        />
+        <p className="t-footnote mt-2" style={{ color: "var(--label-2)" }}>
+          {SORT_FOOTNOTE[sort]}
         </p>
       </div>
 
-      <Content padding="px-5">
+      <Content>
         {groups.length === 0 ? (
-          <EmptyState>
-            {query.trim()
-              ? "Nothing matches that."
-              : "Nothing open. Capture something and it lands here."}
-          </EmptyState>
+          <EmptyState
+            title={query.trim() ? "No results" : "All clear"}
+            detail={
+              query.trim()
+                ? "Nothing matches that search."
+                : "Capture something and it lands here."
+            }
+          />
         ) : null}
 
         {groups.map((group) => (
-          <section key={group.key}>
-            <SectionLabel label={group.label} count={group.count} color={group.color} />
+          <Group
+            key={group.key}
+            header={
+              <span className="flex items-center gap-2">
+                {group.category ? (
+                  <Dot color={categoryColor(group.category)} size={8} />
+                ) : null}
+                {group.header}
+                <span style={{ color: "var(--label-3)" }}>{group.tasks.length}</span>
+              </span>
+            }
+          >
             {group.tasks.map((task) => (
               <TaskRow
                 key={task.id}
@@ -171,11 +158,11 @@ export function AllTasks({
                 timeZone={timeZone}
                 urgent={isUrgent(task, now)}
                 onRate={(value) => rate(task, value)}
+                showCategory={sort !== "category"}
               />
             ))}
-          </section>
+          </Group>
         ))}
-        <div className="h-4" />
       </Content>
 
       <TabBar />
@@ -185,44 +172,35 @@ export function AllTasks({
 
 /* ------------------------------------------------------------------ sorts */
 
-function buildGroups(tasks: Task[], sort: SortMode): Group[] {
+function buildGroups(tasks: Task[], sort: SortMode): ListGroup[] {
   if (sort === "category") {
-    return CATEGORY_ORDER.map((category) => {
-      const inGroup = tasks
-        .filter((task) => task.category === category)
-        .sort(byDueAscending);
-      return {
-        key: category,
-        label: headerFor(category),
-        color: labelColor(category),
-        count: inGroup.length,
-        tasks: inGroup,
-      };
-    }).filter((group) => group.tasks.length > 0);
+    return CATEGORY_ORDER.map((category) => ({
+      key: category,
+      header:
+        category === "delegate"
+          ? "Delegate · not scheduled"
+          : sentence(CATEGORIES[category].label),
+      category,
+      tasks: tasks.filter((task) => task.category === category).sort(byDueAscending),
+    })).filter((group) => group.tasks.length > 0);
   }
 
   if (sort === "due") {
-    return single("SOONEST FIRST · NO DATE LAST", [...tasks].sort(byDueAscending));
+    return single("Soonest first", [...tasks].sort(byDueAscending));
   }
 
   return single(
-    "MOST IMPORTANT FIRST",
-    [...tasks].sort(
-      (a, b) => b.financialImpact - a.financialImpact || byDueAscending(a, b),
-    ),
+    "Most important first",
+    [...tasks].sort((a, b) => b.financialImpact - a.financialImpact || byDueAscending(a, b)),
   );
 
-  function single(label: string, sorted: Task[]): Group[] {
-    if (sorted.length === 0) return [];
-    return [{ key: label, label, count: sorted.length, tasks: sorted }];
+  function single(header: string, sorted: Task[]): ListGroup[] {
+    return sorted.length === 0 ? [] : [{ key: header, header, category: null, tasks: sorted }];
   }
 }
 
-function headerFor(category: TaskCategory): string {
-  // Delegate items never claim calendar time, and the header says so.
-  return category === "delegate"
-    ? "DELEGATE · NOT SCHEDULED"
-    : CATEGORIES[category].label;
+function sentence(value: string): string {
+  return value.charAt(0) + value.slice(1).toLowerCase();
 }
 
 /** Ascending, with no-date last. */

@@ -2,115 +2,118 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  CalendarDays,
-  ListChecks,
-  Moon,
-  Send,
-  Sun,
-  Sunrise,
-} from "lucide-react";
-import { useTheme } from "./theme";
+import { CalendarDays, ListChecks, Send, Sun } from "lucide-react";
 
 /**
- * The status bar. The handoff says to use the platform's, which a web app
- * cannot; this is the closest honest equivalent — the clock only, with the
- * theme toggle where the indicators would sit.
+ * A large title, the way a UIKit navigation bar shows one: the title sits in
+ * the content, big and bold, with any actions on a line above it.
  */
-export function StatusBar({ clock }: { clock: string }) {
-  const { theme, toggle } = useTheme();
-  const Icon = theme === "dark" ? Sun : Moon;
-
-  return (
-    <div className="flex h-11 shrink-0 items-center justify-between px-[22px]">
-      <span
-        className="font-display text-[15px] tracking-[0.06em]"
-        style={{ fontFamily: "var(--font-display)" }}
-      >
-        {clock}
-      </span>
-      <button
-        type="button"
-        onClick={toggle}
-        aria-label={theme === "dark" ? "Switch to the light view" : "Switch to the dark view"}
-        className="press -mr-2 flex h-11 w-11 items-center justify-center text-text-secondary"
-      >
-        <Icon size={16} strokeWidth={1.5} />
-      </button>
-    </div>
-  );
-}
-
-interface HeaderProps {
-  eyebrow?: string;
-  title: string;
-  large?: boolean;
-  /** Right-hand column: a metric, an icon button, whatever the screen needs. */
-  trailing?: React.ReactNode;
-  padding?: string;
-}
-
 export function Header({
-  eyebrow,
   title,
-  large = false,
+  subtitle,
   trailing,
-  padding = "px-[22px]",
-}: HeaderProps) {
+}: {
+  title: string;
+  subtitle?: string;
+  trailing?: React.ReactNode;
+}) {
   return (
-    <header className={`flex shrink-0 items-end justify-between pt-1.5 pb-3.5 ${padding}`}>
-      <div className="min-w-0">
-        {eyebrow ? (
-          <div className="t-eyebrow mb-1.5 text-text-secondary">{eyebrow}</div>
-        ) : null}
-        <h1 className={large ? "t-screen-title-lg" : "t-screen-title"}>{title}</h1>
+    <header className="shrink-0 px-4 pt-2 pb-2">
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="t-large-title">{title}</h1>
+          {subtitle ? (
+            <p className="t-subhead mt-0.5" style={{ color: "var(--label-2)" }}>
+              {subtitle}
+            </p>
+          ) : null}
+        </div>
+        {trailing ? <div className="shrink-0 pb-1">{trailing}</div> : null}
       </div>
-      {trailing ? <div className="shrink-0 pl-3">{trailing}</div> : null}
     </header>
   );
 }
 
-/** The right-hand metric column: a Bebas number over a small label. */
-export function HeaderMetric({
-  value,
+/** A round tappable icon in the top-right, like Reminders' list actions. */
+export function IconButton({
   label,
-  accent = false,
+  onClick,
+  href,
+  children,
+  tint = "var(--blue)",
 }: {
-  value: string;
   label: string;
-  accent?: boolean;
+  onClick?: () => void;
+  href?: string;
+  children: React.ReactNode;
+  tint?: string;
+}) {
+  const className =
+    "pressable flex h-11 w-11 items-center justify-center rounded-full";
+
+  if (href) {
+    return (
+      <Link href={href} aria-label={label} className={className} style={{ color: tint }}>
+        {children}
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className={className}
+      style={{ color: tint }}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** The scrolling middle of a screen. */
+export function Content({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="text-right">
-      <div
-        className="t-numeral"
-        style={{ color: accent ? "var(--gold-text)" : "var(--text)" }}
-      >
-        {value}
-      </div>
-      <div className="t-eyebrow mt-1 text-text-faded">{label}</div>
+    <main className={`no-scrollbar flex-1 overflow-y-auto px-4 pb-4 ${className}`}>
+      {children}
+    </main>
+  );
+}
+
+/** A bar pinned above the tab bar, for a screen's primary action. */
+export function ActionBar({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="bar-blur shrink-0 px-4 pt-3 pb-3"
+      style={{ borderTop: "0.5px solid var(--separator)" }}
+    >
+      {children}
     </div>
   );
 }
 
-export function ActionBar({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="shrink-0 border-t border-hairline px-[22px] py-3">{children}</div>
-  );
-}
-
 const TABS = [
-  { href: "/today", label: "TODAY", Icon: Sunrise },
-  { href: "/week", label: "WEEK", Icon: CalendarDays },
-  { href: "/tasks", label: "ALL TASKS", Icon: ListChecks },
-  { href: "/delegate", label: "DELEGATE", Icon: Send },
+  { href: "/today", label: "Today", Icon: Sun },
+  { href: "/week", label: "Week", Icon: CalendarDays },
+  { href: "/tasks", label: "Tasks", Icon: ListChecks },
+  { href: "/delegate", label: "Delegate", Icon: Send },
 ];
 
 export function TabBar() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex shrink-0 border-t border-hairline pt-[9px] pb-[18px]">
+    <nav
+      className="bar-blur flex shrink-0 pt-1.5 pb-[22px]"
+      style={{ borderTop: "0.5px solid var(--separator)" }}
+    >
       {TABS.map(({ href, label, Icon }) => {
         const active = pathname === href || pathname.startsWith(`${href}/`);
         return (
@@ -118,31 +121,16 @@ export function TabBar() {
             key={href}
             href={href}
             aria-current={active ? "page" : undefined}
-            className="press flex flex-1 flex-col items-center gap-1.5 py-1"
-            style={{ color: active ? "var(--tab-active)" : "var(--tab-inactive)" }}
+            className="flex flex-1 flex-col items-center gap-[3px] pt-1"
+            style={{ color: active ? "var(--blue)" : "var(--gray)" }}
           >
-            <Icon size={19} strokeWidth={1.5} />
-            <span className="t-tab">{label}</span>
+            <Icon size={25} strokeWidth={active ? 2.2 : 1.8} />
+            <span className="t-caption2" style={{ fontWeight: 500 }}>
+              {label}
+            </span>
           </Link>
         );
       })}
     </nav>
-  );
-}
-
-/** The scrolling middle of a screen. */
-export function Content({
-  children,
-  padding = "px-[22px]",
-  className = "",
-}: {
-  children: React.ReactNode;
-  padding?: string;
-  className?: string;
-}) {
-  return (
-    <main className={`no-scrollbar flex-1 overflow-y-auto ${padding} ${className}`}>
-      {children}
-    </main>
   );
 }

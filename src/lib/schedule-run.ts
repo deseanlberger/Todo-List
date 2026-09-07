@@ -18,11 +18,27 @@ export interface WeekComputation {
   layout: Layout;
   diff: ScheduleDiff;
   blocks: PendingBlock[];
+  /** Open runs of time left in this week. Zero means the week is spent. */
+  openSlots: number;
 }
 
-/** The Monday of the week we are currently working in. */
+/** The Monday of the calendar week containing `now`. */
 export function currentWeekStart(now = new Date()): string {
   return weekOfDate(now, CALENDAR_TIME_ZONE);
+}
+
+/**
+ * The week to actually work on.
+ *
+ * Nothing is ever placed in the past, so by Sunday evening the current week
+ * has no capacity left and scheduling it would put every task in Didn't Fit.
+ * When that happens the useful answer is the week about to start, not the one
+ * finishing — so roll forward.
+ */
+export async function resolveTargetWeek(now = new Date()): Promise<string> {
+  const thisWeek = currentWeekStart(now);
+  const { openSlots } = await computeWeek(thisWeek, now);
+  return openSlots > 0 ? thisWeek : addDays(thisWeek, 7);
 }
 
 /**
@@ -47,7 +63,7 @@ export async function computeWeek(
   // §9.1: the calendar is read first, always.
   const events = await calendar().listWeek(weekStart, CALENDAR_TIME_ZONE);
 
-  const { layout, diff } = scheduleWeek({
+  const { layout, diff, slots } = scheduleWeek({
     weekStart,
     tasks,
     windows,
@@ -59,7 +75,13 @@ export async function computeWeek(
     timeZone: CALENDAR_TIME_ZONE,
   });
 
-  return { weekStart, layout, diff, blocks: layoutToBlocks(layout, weekStart) };
+  return {
+    weekStart,
+    layout,
+    diff,
+    blocks: layoutToBlocks(layout, weekStart),
+    openSlots: slots.length,
+  };
 }
 
 /** Turn a computed layout into the rows we would store. */

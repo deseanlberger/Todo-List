@@ -37,7 +37,7 @@ export const SEED_SETTINGS: SchedulerSettings = {
   deepFocusMinutes: 45,
   standardMinutes: 30,
   gcalEventPrefix: "[ODY] ",
-  theme: "dark",
+  theme: "light",
   defaultSort: "category",
 };
 

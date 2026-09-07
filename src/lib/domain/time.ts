@@ -210,6 +210,61 @@ export function formatDueWeekday(iso: string, timeZone: string): string {
   return WEEKDAY_FULL[zonedParts(new Date(iso), timeZone).weekday];
 }
 
+/* ------------------------------------------------- sentence-case variants
+ * The uppercase forms above still serve the Telegram replies, where the app
+ * has no styling of its own. On screen everything is sentence case.
+ */
+
+export const WEEKDAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+export const MONTH_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+export const MONTH_FULL = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+/** `Wed Sep 2` — the due date on a task row. */
+export function formatDueShort(iso: string, timeZone: string): string {
+  const p = zonedParts(new Date(iso), timeZone);
+  return `${WEEKDAY_SHORT[p.weekday]} ${MONTH_SHORT[p.month - 1]} ${p.day}`;
+}
+
+/** `Thursday, September 3` — a screen subtitle. */
+export function formatDayLong(isoDay: string, dayIndex: number): string {
+  const { month, day } = parseIsoDate(isoDay);
+  return `${WEEKDAY_FULL[dayIndex]}, ${MONTH_FULL[month - 1]} ${day}`;
+}
+
+/** `Sep 1` — compact, for a week label. */
+export function formatDayShort(isoDay: string): string {
+  const { month, day } = parseIsoDate(isoDay);
+  return `${MONTH_SHORT[month - 1]} ${day}`;
+}
+
+/**
+ * `9:41` — a 12-hour clock without the meridiem, for dense timeline gutters
+ * where the am/pm is obvious from position.
+ */
+export function formatClock12(minutes: number, withMeridiem = false): string {
+  const m = ((minutes % 1440) + 1440) % 1440;
+  const hour24 = Math.floor(m / 60);
+  const hour = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  const body = `${hour}:${pad(m % 60)}`;
+  return withMeridiem ? `${body} ${hour24 < 12 ? "AM" : "PM"}` : body;
+}
+
+/** `9:00 – 10:30 AM`, or `11:45 AM – 12:15 PM` when the halves differ. */
+export function formatRange12(startMinutes: number, endMinutes: number): string {
+  const startPm = Math.floor(startMinutes / 60) >= 12;
+  const endPm = Math.floor(endMinutes / 60) >= 12;
+  if (startPm === endPm) {
+    return `${formatClock12(startMinutes)} – ${formatClock12(endMinutes, true)}`;
+  }
+  return `${formatClock12(startMinutes, true)} – ${formatClock12(endMinutes, true)}`;
+}
+
 export function pad(value: number): string {
   return String(value).padStart(2, "0");
 }
