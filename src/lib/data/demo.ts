@@ -136,6 +136,14 @@ export class DemoRepository implements Repository {
     return clone(state().blocks.filter((b) => b.weekOf === weekOf));
   }
 
+  async listBlocksBetween(fromIso: string, toIso: string): Promise<ScheduledBlock[]> {
+    return clone(
+      state().blocks.filter(
+        (block) => block.startTime >= fromIso && block.startTime < toIso,
+      ),
+    );
+  }
+
   async replaceBlocks(
     weekOf: string,
     blocks: Omit<ScheduledBlock, "id" | "userId" | "createdAt">[],

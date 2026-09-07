@@ -4,6 +4,7 @@ import { useMemo, useOptimistic, useState, useTransition } from "react";
 import { Plus, Search, X } from "lucide-react";
 import { saveSortMode, setImportance } from "@/app/actions";
 import { Content, Header, IconButton, TabBar } from "@/components/chrome";
+import { QuickAddButton } from "@/components/quick-add";
 import { TaskRow } from "@/components/task-row";
 import { Dot, EmptyState, Group, Segmented, categoryColor } from "@/components/ui";
 import { CATEGORIES, CATEGORY_ORDER } from "@/lib/domain/categories";
@@ -98,6 +99,7 @@ export function AllTasks({
             <IconButton label="Add a task" href="/tasks/new">
               <Plus size={25} strokeWidth={2.2} />
             </IconButton>
+            <QuickAddButton />
           </div>
         }
       />

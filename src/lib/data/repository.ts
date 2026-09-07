@@ -50,6 +50,8 @@ export interface Repository {
   updateSettings(patch: Partial<SchedulerSettings>): Promise<SchedulerSettings>;
 
   listBlocks(weekOf: string): Promise<ScheduledBlock[]>;
+  /** Blocks starting inside `[fromIso, toIso)`. Used by the month view. */
+  listBlocksBetween(fromIso: string, toIso: string): Promise<ScheduledBlock[]>;
   replaceBlocks(
     weekOf: string,
     blocks: Omit<ScheduledBlock, "id" | "userId" | "createdAt">[],

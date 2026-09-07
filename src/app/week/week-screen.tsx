@@ -20,7 +20,7 @@ import {
   type WeekView,
 } from "@/lib/view-types";
 
-type Mode = "load" | "grid";
+type Mode = "load" | "grid" | "month";
 
 export function WeekScreen({ view }: { view: WeekView }) {
   const router = useRouter();
@@ -46,10 +46,14 @@ export function WeekScreen({ view }: { view: WeekView }) {
   return (
     <>
       <Header
-        title="Week"
-        subtitle={`Week of ${formatDayShort(view.weekStart)}${
-          view.todayIndex === null ? " · next week" : ""
-        }`}
+        title="Calendar"
+        // "Next week" leads, because which week this is matters more than
+        // its date. The date follows for anyone who wants it.
+        subtitle={
+          view.todayIndex === null
+            ? `Next week · ${formatDayShort(view.weekStart)}`
+            : `This week · ${formatDayShort(view.weekStart)}`
+        }
         trailing={
           <IconButton label="Settings" href="/settings" tint="var(--label-2)">
             <Settings size={22} strokeWidth={2} />
@@ -59,13 +63,17 @@ export function WeekScreen({ view }: { view: WeekView }) {
 
       <div className="shrink-0 px-4 pb-3">
         <Segmented
-          ariaLabel="Week view"
+          ariaLabel="Calendar range"
           options={[
-            { value: "load" as Mode, label: "Load" },
+            { value: "load" as Mode, label: "Week" },
             { value: "grid" as Mode, label: "Grid" },
+            { value: "month" as Mode, label: "Month" },
           ]}
           value={mode}
-          onChange={setMode}
+          onChange={(value) => {
+            if (value === "month") router.push("/month");
+            else setMode(value);
+          }}
         />
       </div>
 

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { AlertCircle } from "lucide-react";
 import { scheduleMyWeek } from "@/app/actions";
 import { ActionBar, Content, Header, TabBar } from "@/components/chrome";
+import { QuickAddButton } from "@/components/quick-add";
 import { Button, Dot, EmptyState, Group, categoryColor } from "@/components/ui";
 import { CATEGORIES } from "@/lib/domain/categories";
 import {
@@ -47,10 +48,15 @@ export function TodayScreen({
         title="Today"
         subtitle={formatDayLong(view.date, view.dayIndex)}
         trailing={
-          <div className="text-right">
-            <div className="t-title2 tnum">{view.blocksLeft}</div>
-            <div className="t-caption" style={{ color: "var(--label-2)" }}>
-              {view.blocksLeft === 1 ? "block left" : "blocks left"}
+          <div className="flex items-end gap-1">
+            <div className="pb-1 text-right">
+              <div className="t-title2 tnum">{view.blocksLeft}</div>
+              <div className="t-caption" style={{ color: "var(--label-2)" }}>
+                {view.blocksLeft === 1 ? "block left" : "blocks left"}
+              </div>
+            </div>
+            <div className="-mr-2">
+              <QuickAddButton />
             </div>
           </div>
         }

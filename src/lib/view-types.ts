@@ -78,3 +78,33 @@ export interface TodayView {
    */
   nextUp: { title: string; date: string; dayIndex: number; start: number } | null;
 }
+
+/* ------------------------------------------------------------------ month */
+
+export interface MonthDay {
+  date: string;
+  dayOfMonth: number;
+  /** False for the leading and trailing days that pad the grid. */
+  inMonth: boolean;
+  isToday: boolean;
+  isPast: boolean;
+  /** Scheduled blocks, excluding resets. */
+  blockCount: number;
+  /** Existing calendar commitments. */
+  lockedCount: number;
+  deepFocusBlocks: number;
+  /** Distinct category colours present, in display order, for the dots. */
+  categories: TaskCategory[];
+  entries: WeekEntry[];
+}
+
+export interface MonthView {
+  /** `YYYY-MM-01`. */
+  monthStart: string;
+  label: string;
+  /** Whole weeks, Monday first, padded either side. */
+  weeks: MonthDay[][];
+  /** The day to select on open: today, or the first of the month. */
+  initialDate: string;
+  isCurrentMonth: boolean;
+}
