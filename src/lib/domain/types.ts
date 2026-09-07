@@ -68,6 +68,11 @@ export interface AvailabilityWindow {
   startTime: string;
   endTime: string;
   allowance: WindowAllowance;
+  /**
+   * What this window is, in the user's words. Optional. A closed window
+   * carries its reason here, and shows on the calendar when it has one.
+   */
+  label: string | null;
   sortOrder: number;
 }
 
@@ -81,6 +86,23 @@ export interface AvailabilityOverride {
   endTime: string | null;
   allowance: WindowAllowance;
   reason: string | null;
+}
+
+/**
+ * A fixed, same-time-every-week commitment: coaching a group, a standing
+ * meeting, a lift. A wall to the scheduler, never a task.
+ */
+export interface Commitment {
+  id: string;
+  userId: string;
+  title: string;
+  /** 0 = Monday ... 6 = Sunday. */
+  weekday: number;
+  /** `HH:MM` local. */
+  startTime: string;
+  endTime: string;
+  location: TaskLocation;
+  sortOrder: number;
 }
 
 export interface SchedulerSettings {
@@ -107,6 +129,11 @@ export interface CalendarEvent {
   location: string | null;
   /** True when this event was written by this app on a previous run. */
   isOurs: boolean;
+  /**
+   * Set only when we know for certain — a commitment the user tagged. Left
+   * undefined for a Google event, where the keyword heuristic has to guess.
+   */
+  atGym?: boolean;
 }
 
 export interface EstimationSample {

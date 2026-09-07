@@ -1,6 +1,7 @@
 import type {
   AvailabilityOverride,
   AvailabilityWindow,
+  Commitment,
   EstimationSample,
   SchedulerSettings,
   ScheduledBlock,
@@ -15,6 +16,10 @@ export type NewTask = Omit<Task, "id" | "userId" | "createdAt"> & {
 export type TaskPatch = Partial<Omit<Task, "id" | "userId" | "createdAt">>;
 
 export type NewWindow = Omit<AvailabilityWindow, "id" | "userId"> & {
+  id?: string;
+};
+
+export type NewCommitment = Omit<Commitment, "id" | "userId"> & {
   id?: string;
 };
 
@@ -45,6 +50,9 @@ export interface Repository {
   replaceWindows(windows: NewWindow[]): Promise<AvailabilityWindow[]>;
 
   listOverrides(fromDate: string, toDate: string): Promise<AvailabilityOverride[]>;
+
+  listCommitments(): Promise<Commitment[]>;
+  replaceCommitments(commitments: NewCommitment[]): Promise<Commitment[]>;
 
   getSettings(): Promise<SchedulerSettings>;
   updateSettings(patch: Partial<SchedulerSettings>): Promise<SchedulerSettings>;

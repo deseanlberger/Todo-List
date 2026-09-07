@@ -1,5 +1,6 @@
 import { blockMinutes, categoryMeta } from "@/lib/domain/categories";
 import { byPriority, comparePriority, isUrgent } from "@/lib/domain/priority";
+import { addDays, isoDate } from "@/lib/domain/time";
 import type { SchedulerSettings, Task } from "@/lib/domain/types";
 import type { OpenAllowance, Slot, Wall } from "./availability";
 import {
@@ -79,9 +80,18 @@ interface SlotCursor {
 export function planWeek(input: PlanInput): Layout {
   const { tasks, slots, walls, settings, now, timeZone } = input;
 
-  const schedulable = tasks.filter(
-    (task) => task.status !== "done" && categoryMeta(task.category).schedules,
-  );
+  // §14 places recurring tasks first, before anything else is considered.
+  // That is right for the one due this week and wrong for the one due next
+  // month: without this, next month's rent would claim the best slot of
+  // every week between now and then. A recurring task waits until the week
+  // it is actually due in. Overdue still counts, and a recurring task with
+  // no due date has no future to wait for, so both stay in.
+  const weekEnd = addDays(input.weekStart, 7);
+  const schedulable = tasks.filter((task) => {
+    if (task.status === "done" || !categoryMeta(task.category).schedules) return false;
+    if (!task.isRecurring || !task.dueDate) return true;
+    return isoDate(new Date(task.dueDate), timeZone) < weekEnd;
+  });
 
   const cursors: SlotCursor[] = slots.map((slot) => ({
     slot,

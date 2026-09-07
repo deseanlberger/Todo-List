@@ -3,9 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronRight, Settings } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { scheduleMyWeek } from "@/app/actions";
-import { ActionBar, Content, Header, IconButton, TabBar } from "@/components/chrome";
+import { ActionBar, Content, Header, SettingsGear, TabBar } from "@/components/chrome";
 import { Button, Dot, EmptyState, Group, Segmented, categoryColor } from "@/components/ui";
 import {
   WEEKDAY_FULL,
@@ -54,11 +54,7 @@ export function WeekScreen({ view }: { view: WeekView }) {
             ? `Next week · ${formatDayShort(view.weekStart)}`
             : `This week · ${formatDayShort(view.weekStart)}`
         }
-        trailing={
-          <IconButton label="Settings" href="/settings" tint="var(--label-2)">
-            <Settings size={22} strokeWidth={2} />
-          </IconButton>
-        }
+        trailing={<SettingsGear />}
       />
 
       <div className="shrink-0 px-4 pb-3">
@@ -232,7 +228,9 @@ export function WeekScreen({ view }: { view: WeekView }) {
 /** A day's committed time: locked calendar time, then each block, then open. */
 function LoadMeter({ day }: { day: WeekDay }) {
   const segments = day.entries
-    .filter((entry) => !entry.isReset)
+    // Free slots are time you *have*, not time you have spent. Counting
+    // them here would show every day as full before anything is scheduled.
+    .filter((entry) => !entry.isReset && !entry.isFree)
     .map((entry) => ({
       minutes: Math.max(0, entry.end - entry.start),
       color: entry.locked
@@ -342,12 +340,17 @@ function WeekGrid({ view }: { view: WeekView }) {
                         style={{
                           top: Math.max(0, top),
                           height,
-                          background: entry.locked
-                            ? "var(--label-4)"
-                            : entry.category
-                              ? categoryColor(entry.category)
-                              : "var(--label-3)",
-                          opacity: entry.locked ? 1 : 0.85,
+                          background: entry.isFree
+                            ? "transparent"
+                            : entry.locked
+                              ? "var(--label-4)"
+                              : entry.category
+                                ? categoryColor(entry.category)
+                                : "var(--label-3)",
+                          border: entry.isFree
+                            ? `1px dashed ${freeColor(entry.allowance)}`
+                            : undefined,
+                          opacity: entry.isFree ? 0.7 : entry.locked ? 1 : 0.85,
                         }}
                         title={entry.title}
                       />
@@ -372,4 +375,11 @@ function WeekGrid({ view }: { view: WeekView }) {
       </div>
     </Group>
   );
+}
+
+/** A free window's colour in the grid, matching the Today timeline. */
+function freeColor(allowance: WeekDay["entries"][number]["allowance"]): string {
+  if (allowance === "deep_focus") return "var(--cat-deep-focus)";
+  if (allowance === "admin_only") return "var(--cat-high-priority-admin)";
+  return "var(--label-3)";
 }

@@ -5,7 +5,7 @@
  * `server-only`, and a client component importing one — even for a type —
  * pulls the whole module into the browser bundle and fails the build.
  */
-import type { Task, TaskCategory } from "@/lib/domain/types";
+import type { Task, TaskCategory, WindowAllowance } from "@/lib/domain/types";
 
 /** The load meter's canvas: a 06:00–22:00 day. */
 export const DAY_START_MINUTES = 6 * 60;
@@ -30,6 +30,14 @@ export interface WeekEntry {
   urgent: boolean;
   location: "gym" | "home" | null;
   done: boolean;
+  /**
+   * Time the template says is yours, with nothing in it yet. Rendered so a
+   * day reads as its own shape before anything is scheduled — otherwise
+   * three hours of deep focus simply do not appear until a task lands there.
+   */
+  isFree?: boolean;
+  /** What may land here. Set on free slots; what gives them their colour. */
+  allowance?: WindowAllowance;
 }
 
 export interface WeekDay {

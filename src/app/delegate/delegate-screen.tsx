@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Plus } from "lucide-react";
 import { assignTask, setHandedOff } from "@/app/actions";
-import { ActionBar, Content, Header, TabBar } from "@/components/chrome";
+import { ActionBar, Content, Header, SettingsGear, TabBar } from "@/components/chrome";
 import { Button, EmptyState, Group } from "@/components/ui";
 import { formatDueShort } from "@/lib/domain/time";
 import type { Task } from "@/lib/domain/types";
@@ -62,7 +62,15 @@ export function DelegateScreen({
 
   return (
     <>
-      <Header title="Delegate" subtitle={blockLabel} />
+      <Header
+        title="Delegate"
+        subtitle={blockLabel}
+        trailing={
+          <div className="-mr-2">
+            <SettingsGear />
+          </div>
+        }
+      />
 
       <Content>
         {groups.length === 0 ? (

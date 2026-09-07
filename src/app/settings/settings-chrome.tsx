@@ -1,7 +1,7 @@
 "use client";
 
-import { NavBar } from "@/components/nav-bar";
 import { TabBar } from "@/components/chrome";
+import { NavBar } from "@/components/nav-bar";
 
 export function SettingsChrome({ children }: { children: React.ReactNode }) {
   return (

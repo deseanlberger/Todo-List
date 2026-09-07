@@ -1,6 +1,7 @@
 import { DEFAULT_TIME_ZONE, isoDate, minutesOfDay } from "@/lib/domain/time";
 import type {
   AvailabilityWindow,
+  Commitment,
   SchedulerSettings,
   Task,
   TaskCategory,
@@ -11,22 +12,22 @@ export const DEMO_USER_ID = "00000000-0000-0000-0000-000000000000";
 
 /** The seed week template from `schema.sql`, as domain objects. */
 export const SEED_WINDOWS: Omit<AvailabilityWindow, "id" | "userId">[] = [
-  { weekday: 0, startTime: "05:30", endTime: "08:00", allowance: "any", sortOrder: 0 },
-  { weekday: 0, startTime: "12:00", endTime: "14:00", allowance: "any", sortOrder: 1 },
-  { weekday: 0, startTime: "20:00", endTime: "22:00", allowance: "admin_only", sortOrder: 2 },
-  { weekday: 1, startTime: "05:30", endTime: "08:00", allowance: "deep_focus", sortOrder: 0 },
-  { weekday: 1, startTime: "12:00", endTime: "14:30", allowance: "any", sortOrder: 1 },
-  { weekday: 2, startTime: "05:30", endTime: "08:00", allowance: "any", sortOrder: 0 },
-  { weekday: 2, startTime: "11:00", endTime: "14:00", allowance: "any", sortOrder: 1 },
-  { weekday: 2, startTime: "20:00", endTime: "22:00", allowance: "admin_only", sortOrder: 2 },
-  { weekday: 3, startTime: "06:00", endTime: "08:30", allowance: "deep_focus", sortOrder: 0 },
-  { weekday: 3, startTime: "11:00", endTime: "15:00", allowance: "any", sortOrder: 1 },
-  { weekday: 3, startTime: "20:00", endTime: "22:00", allowance: "admin_only", sortOrder: 2 },
-  { weekday: 4, startTime: "05:30", endTime: "08:00", allowance: "any", sortOrder: 0 },
-  { weekday: 4, startTime: "12:00", endTime: "14:00", allowance: "any", sortOrder: 1 },
-  { weekday: 5, startTime: "07:00", endTime: "12:00", allowance: "deep_focus", sortOrder: 0 },
-  { weekday: 6, startTime: "08:00", endTime: "11:00", allowance: "any", sortOrder: 0 },
-  { weekday: 6, startTime: "19:00", endTime: "21:00", allowance: "no_work", sortOrder: 1 },
+  { weekday: 0, startTime: "05:30", endTime: "08:00", allowance: "any", label: null, sortOrder: 0 },
+  { weekday: 0, startTime: "12:00", endTime: "14:00", allowance: "any", label: null, sortOrder: 1 },
+  { weekday: 0, startTime: "20:00", endTime: "22:00", allowance: "admin_only", label: null, sortOrder: 2 },
+  { weekday: 1, startTime: "05:30", endTime: "08:00", allowance: "deep_focus", label: null, sortOrder: 0 },
+  { weekday: 1, startTime: "12:00", endTime: "14:30", allowance: "any", label: null, sortOrder: 1 },
+  { weekday: 2, startTime: "05:30", endTime: "08:00", allowance: "any", label: null, sortOrder: 0 },
+  { weekday: 2, startTime: "11:00", endTime: "14:00", allowance: "any", label: null, sortOrder: 1 },
+  { weekday: 2, startTime: "20:00", endTime: "22:00", allowance: "admin_only", label: null, sortOrder: 2 },
+  { weekday: 3, startTime: "06:00", endTime: "08:30", allowance: "deep_focus", label: null, sortOrder: 0 },
+  { weekday: 3, startTime: "11:00", endTime: "15:00", allowance: "any", label: null, sortOrder: 1 },
+  { weekday: 3, startTime: "20:00", endTime: "22:00", allowance: "admin_only", label: null, sortOrder: 2 },
+  { weekday: 4, startTime: "05:30", endTime: "08:00", allowance: "any", label: null, sortOrder: 0 },
+  { weekday: 4, startTime: "12:00", endTime: "14:00", allowance: "any", label: null, sortOrder: 1 },
+  { weekday: 5, startTime: "07:00", endTime: "12:00", allowance: "deep_focus", label: null, sortOrder: 0 },
+  { weekday: 6, startTime: "08:00", endTime: "11:00", allowance: "any", label: null, sortOrder: 0 },
+  { weekday: 6, startTime: "19:00", endTime: "21:00", allowance: "no_work", label: null, sortOrder: 1 },
 ];
 
 export const SEED_SETTINGS: SchedulerSettings = {
@@ -263,24 +264,25 @@ export function seedTasks(now: Date): Task[] {
  * scheduler has something to fill around and the location rule has something
  * to act on. Returns raw specs; the caller turns them into events.
  */
-export const DEMO_CALENDAR: {
-  weekday: number;
-  start: string;
-  end: string;
-  summary: string;
-}[] = [
-  { weekday: 0, start: "08:30", end: "11:00", summary: "Youth S&C — coaching" },
-  { weekday: 0, start: "15:00", end: "19:00", summary: "Afternoon sessions — gym" },
-  { weekday: 1, start: "08:30", end: "11:30", summary: "Elite group — coaching" },
-  { weekday: 1, start: "15:00", end: "19:30", summary: "Afternoon sessions — gym" },
-  { weekday: 2, start: "06:00", end: "07:00", summary: "SMHS volleyball — team session" },
-  { weekday: 2, start: "14:30", end: "19:00", summary: "Afternoon sessions — gym" },
-  { weekday: 3, start: "09:00", end: "10:30", summary: "Mira Costa JUCO — team session" },
-  { weekday: 3, start: "14:00", end: "14:30", summary: "Sales meeting" },
-  { weekday: 3, start: "15:00", end: "19:00", summary: "Afternoon sessions — gym" },
-  { weekday: 4, start: "08:30", end: "11:00", summary: "Youth S&C — coaching" },
-  { weekday: 4, start: "15:00", end: "18:00", summary: "Afternoon sessions — gym" },
-  { weekday: 5, start: "09:00", end: "11:00", summary: "Saturday open gym" },
+/**
+ * The demo's recurring commitments — a realistic coaching week, so the
+ * scheduler has walls to fill around with no setup at all. This replaces the
+ * fixed week the stub calendar used to invent: same shape, but data the user
+ * owns and can edit, which is the point of the screen.
+ */
+export const SEED_COMMITMENTS: Omit<Commitment, "id" | "userId">[] = [
+  { title: "Youth S&C", weekday: 0, startTime: "08:30", endTime: "11:00", location: "gym", sortOrder: 0 },
+  { title: "Afternoon sessions", weekday: 0, startTime: "15:00", endTime: "19:00", location: "gym", sortOrder: 1 },
+  { title: "Elite group", weekday: 1, startTime: "08:30", endTime: "11:30", location: "gym", sortOrder: 0 },
+  { title: "Afternoon sessions", weekday: 1, startTime: "15:00", endTime: "19:30", location: "gym", sortOrder: 1 },
+  { title: "SMHS volleyball", weekday: 2, startTime: "06:00", endTime: "07:00", location: "gym", sortOrder: 0 },
+  { title: "Afternoon sessions", weekday: 2, startTime: "14:30", endTime: "19:00", location: "gym", sortOrder: 1 },
+  { title: "Mira Costa JUCO", weekday: 3, startTime: "09:00", endTime: "10:30", location: "gym", sortOrder: 0 },
+  { title: "Sales meeting", weekday: 3, startTime: "14:00", endTime: "14:30", location: "home", sortOrder: 1 },
+  { title: "Afternoon sessions", weekday: 3, startTime: "15:00", endTime: "19:00", location: "gym", sortOrder: 2 },
+  { title: "Youth S&C", weekday: 4, startTime: "08:30", endTime: "11:00", location: "gym", sortOrder: 0 },
+  { title: "Afternoon sessions", weekday: 4, startTime: "15:00", endTime: "18:00", location: "gym", sortOrder: 1 },
+  { title: "Saturday open gym", weekday: 5, startTime: "09:00", endTime: "11:00", location: "gym", sortOrder: 0 },
 ];
 
 /** True when the given instant falls inside a demo calendar wall. */

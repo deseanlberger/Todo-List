@@ -1,6 +1,7 @@
 import "server-only";
-import { CALENDAR_TIME_ZONE, calendar } from "@/lib/calendar";
+import { CALENDAR_TIME_ZONE } from "@/lib/calendar";
 import { repository } from "@/lib/data";
+import { wallsForRange } from "@/lib/walls";
 import { CATEGORY_ORDER, CATEGORIES } from "@/lib/domain/categories";
 import {
   addDays,
@@ -46,7 +47,7 @@ export async function loadMonthView(
       minutesToInstant(gridEndExclusive, 0, CALENDAR_TIME_ZONE).toISOString(),
     ),
     repo.listTasks(),
-    calendar().listRange(gridStart, gridEndExclusive, CALENDAR_TIME_ZONE),
+    wallsForRange(gridStart, gridEndExclusive),
   ]);
 
   const byId = new Map(tasks.map((task) => [task.id, task]));

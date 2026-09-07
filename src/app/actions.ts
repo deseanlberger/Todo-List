@@ -1,9 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { repository, type NewWindow, type TaskPatch } from "@/lib/data";
+import {
+  repository,
+  type NewCommitment,
+  type NewWindow,
+  type TaskPatch,
+} from "@/lib/data";
 import { claudeIsConfigured, parseCapture } from "@/lib/capture/parse";
+import { CALENDAR_TIME_ZONE } from "@/lib/calendar";
 import { categoryMeta } from "@/lib/domain/categories";
+import { nextOccurrence } from "@/lib/domain/recurrence";
+import { isoDate, minutesOfDay } from "@/lib/domain/time";
+import { minutesToInstant } from "@/lib/scheduler";
 import type { SortMode, Task, TaskCategory, TaskLocation } from "@/lib/domain/types";
 import {
   approveWeek,
@@ -51,6 +60,8 @@ export async function createTask(input: {
   dueDate: string | null;
   assignee: string | null;
   notes: string | null;
+  isRecurring?: boolean;
+  recurrenceRule?: string | null;
 }) {
   const meta = categoryMeta(input.category);
   const task = await repository().createTask({
@@ -66,8 +77,8 @@ export async function createTask(input: {
     assignee: input.category === "delegate" ? input.assignee : null,
     handedOffAt: null,
     status: "backlog",
-    isRecurring: false,
-    recurrenceRule: null,
+    isRecurring: input.isRecurring ?? false,
+    recurrenceRule: input.isRecurring ? (input.recurrenceRule ?? null) : null,
     reminderLeadDays: 1,
     captureSource: "manual",
     captureTranscript: null,
@@ -196,6 +207,7 @@ export async function closeOutBlock(input: {
       completedAt: new Date().toISOString(),
       actualBlocks: actual,
     });
+    await rollForward(task);
     // Feeds the estimator prompt (§16).
     await repo.recordEstimation({
       taskId: task.id,
@@ -221,6 +233,71 @@ export async function closeOutBlock(input: {
     await repo.updateTask(input.swapTaskId, { status: "scheduled" });
   }
 
+  refresh();
+}
+
+/**
+ * When a repeating task is finished, put the next one in the backlog.
+ *
+ * Called from both completion paths — the tick and the close-out — so a
+ * recurring task rolls forward however it was finished.
+ *
+ * The next date is measured from the task's own due date, not from today.
+ * Paying rent three days late must not walk the 1st of the month forward to
+ * the 4th; the schedule is the schedule.
+ */
+async function rollForward(task: Task): Promise<void> {
+  if (!task.isRecurring || !task.recurrenceRule || !task.dueDate) return;
+
+  const from = isoDate(new Date(task.dueDate), CALENDAR_TIME_ZONE);
+  const next = nextOccurrence(task.recurrenceRule, from);
+  if (!next) return;
+
+  // Keep the original time of day: rent due at 09:00 stays due at 09:00.
+  const minutes = minutesOfDay(new Date(task.dueDate), CALENDAR_TIME_ZONE);
+
+  await repository().createTask({
+    title: task.title,
+    notes: task.notes,
+    category: task.category,
+    location: task.location,
+    estimatedBlocks: task.estimatedBlocks,
+    actualBlocks: null,
+    dueDate: minutesToInstant(next, minutes, CALENDAR_TIME_ZONE).toISOString(),
+    financialImpact: task.financialImpact,
+    assignee: task.assignee,
+    handedOffAt: null,
+    status: "backlog",
+    isRecurring: true,
+    recurrenceRule: task.recurrenceRule,
+    reminderLeadDays: task.reminderLeadDays,
+    captureSource: task.captureSource,
+    captureTranscript: null,
+    completedAt: null,
+  });
+}
+
+/**
+ * Tick a task off, or put it back.
+ *
+ * Close-out (§13) is how a *scheduled block* ends, and it records actual
+ * versus estimated blocks for the estimator. This is the other case: a task
+ * you did without a block against it, or one that turned out not to need
+ * doing. There is nothing honest to feed the estimator from a tick — no
+ * block ran — so it does not write estimation history. Un-ticking returns
+ * the task to the backlog, which is where an unscheduled task belongs; the
+ * next Schedule my week places it again.
+ */
+export async function setTaskDone(taskId: string, done: boolean) {
+  const repo = repository();
+  const task = await repo.getTask(taskId);
+
+  await repo.updateTask(taskId, {
+    status: done ? "done" : "backlog",
+    completedAt: done ? new Date().toISOString() : null,
+  });
+
+  if (done && task) await rollForward(task);
   refresh();
 }
 
@@ -261,6 +338,15 @@ export async function saveWeekTemplate(input: {
   });
   // §3: template edits apply on the next run. Placed blocks are not touched.
   refresh("/settings/week-template");
+}
+
+/* ------------------------------------------------------------ commitments */
+
+export async function saveCommitments(commitments: NewCommitment[]) {
+  await repository().replaceCommitments(commitments);
+  // Commitments are walls, so the month grid changes the moment they do.
+  // Placed blocks are left alone; they move on the next Schedule my week.
+  refresh("/settings/commitments", "/month");
 }
 
 export type { Task };

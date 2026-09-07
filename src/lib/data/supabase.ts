@@ -3,6 +3,7 @@ import { env, hasEnv } from "@/lib/env";
 import type {
   AvailabilityOverride,
   AvailabilityWindow,
+  Commitment,
   EstimationSample,
   SchedulerSettings,
   ScheduledBlock,
@@ -13,6 +14,7 @@ import {
   fromSettings,
   fromTask,
   toBlock,
+  toCommitment,
   toEstimation,
   toOverride,
   toSettings,
@@ -20,6 +22,7 @@ import {
   toWindow,
 } from "./mappers";
 import type {
+  NewCommitment,
   NewTask,
   NewWindow,
   PendingSchedule,
@@ -28,6 +31,12 @@ import type {
 } from "./repository";
 import { SEED_SETTINGS } from "./seed";
 
+/**
+ * NOTE: the Supabase project lives in `us-west-2`. `vercel.json` pins the
+ * functions to `pdx1` so they sit beside it. Every read below is a round
+ * trip; from the default `iad1` each one crossed the country and back, and
+ * a page makes several. Keep the two regions together.
+ */
 export function supabaseIsConfigured(): boolean {
   return (
     hasEnv("NEXT_PUBLIC_SUPABASE_URL") &&
@@ -147,6 +156,7 @@ export class SupabaseRepository implements Repository {
           start_time: w.startTime,
           end_time: w.endTime,
           allowance: w.allowance,
+          label: w.label,
           sort_order: w.sortOrder,
         })),
       );
@@ -166,6 +176,44 @@ export class SupabaseRepository implements Repository {
         .lte("on_date", toDate),
     );
     return rows.map(toOverride);
+  }
+
+  async listCommitments(): Promise<Commitment[]> {
+    const rows = unwrap(
+      await this.db
+        .from("commitments")
+        .select("*")
+        .eq("user_id", this.userId)
+        .order("weekday")
+        .order("start_time"),
+    );
+    return rows.map(toCommitment);
+  }
+
+  async replaceCommitments(commitments: NewCommitment[]): Promise<Commitment[]> {
+    // Same reasoning as replaceWindows: the list is small and edited whole.
+    const { error } = await this.db
+      .from("commitments")
+      .delete()
+      .eq("user_id", this.userId);
+    if (error) throw new Error(error.message);
+
+    if (commitments.length > 0) {
+      const insert = await this.db.from("commitments").insert(
+        commitments.map((c) => ({
+          user_id: this.userId,
+          title: c.title,
+          weekday: c.weekday,
+          start_time: c.startTime,
+          end_time: c.endTime,
+          location: c.location,
+          sort_order: c.sortOrder,
+        })),
+      );
+      if (insert.error) throw new Error(insert.error.message);
+    }
+
+    return this.listCommitments();
   }
 
   private async selectSettings(): Promise<SchedulerSettings | null> {

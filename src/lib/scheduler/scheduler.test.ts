@@ -330,6 +330,119 @@ describe("§6 location", () => {
     expect(layout.placements[0].locationFavourable).toBe(true);
     expect(layout.placements[0].gymAnchorStart).toBe(14 * 60);
   });
+
+  it("leaves a desk morning after coaching open to Home work", () => {
+    // Desean's real Monday: he coaches 6:00-7:15 at the gym and then stays
+    // there and writes programs. Nothing follows until the afternoon.
+    //
+    // Treating the hours after coaching as gym time would refuse every Home
+    // task and leave his best deep focus window of the week empty. The gym
+    // rule is for being stuck between sessions, not for the rest of the day.
+    const { layout } = run({
+      windows: [makeWindow(0, "07:30", "10:30")],
+      events: [
+        // Tagged rather than named into it: "Elite group" contains no gym
+        // keyword, so relying on the heuristic would pass for the wrong reason.
+        makeEvent("2026-09-07", "06:00", "07:15", "Elite group", { atGym: true }),
+        makeEvent("2026-09-07", "13:45", "14:45", "Addy Brown, private", { atGym: true }),
+      ],
+      tasks: [makeTask({ title: "Write SMHS volleyball block 3", location: "home" })],
+    });
+
+    expect(layout.didntFit).toHaveLength(0);
+    expect(layout.placements).toHaveLength(1);
+    expect(layout.placements[0].locationFavourable).toBe(false);
+  });
+
+  it("still claims the gap between two sessions on the same morning", () => {
+    // The other half of the same rule: 7:30 to 8:15 sandwiched between two
+    // gym commitments IS gym time, and a Home task may not go there.
+    const { layout } = run({
+      windows: [makeWindow(0, "07:30", "08:15")],
+      events: [
+        makeEvent("2026-09-07", "06:00", "07:15", "Elite group", { atGym: true }),
+        makeEvent("2026-09-07", "08:30", "10:00", "Youth S&C", { atGym: true }),
+      ],
+      tasks: [makeTask({ title: "Email", location: "home" })],
+    });
+
+    expect(layout.placements).toHaveLength(0);
+    expect(layout.didntFit.map((t) => t.title)).toEqual(["Email"]);
+  });
+});
+
+describe("§14 recurring tasks wait for their week", () => {
+  it("places a recurring task due inside the week", () => {
+    const { layout } = run({
+      windows: [makeWindow(0, "09:00", "12:00")],
+      tasks: [
+        makeTask({
+          title: "Rent",
+          isRecurring: true,
+          recurrenceRule: "FREQ=MONTHLY;BYMONTHDAY=8",
+          dueDate: "2026-09-08T17:00:00Z",
+        }),
+      ],
+    });
+
+    expect(layout.placements.map((p) => p.task.title)).toEqual(["Rent"]);
+  });
+
+  it("leaves next month's copy alone until its week comes round", () => {
+    // Without this, October's rent claims the best slot of every week
+    // between now and October, every single run.
+    const { layout } = run({
+      windows: [makeWindow(0, "09:00", "12:00")],
+      tasks: [
+        makeTask({
+          title: "Rent",
+          isRecurring: true,
+          recurrenceRule: "FREQ=MONTHLY;BYMONTHDAY=8",
+          dueDate: "2026-10-08T17:00:00Z",
+        }),
+      ],
+    });
+
+    expect(layout.placements).toHaveLength(0);
+    // Nor is it overflow: it is not late, it is simply not due yet.
+    expect(layout.didntFit).toHaveLength(0);
+  });
+
+  it("still places an overdue recurring task", () => {
+    const { layout } = run({
+      windows: [makeWindow(0, "09:00", "12:00")],
+      tasks: [
+        makeTask({
+          title: "Rent",
+          isRecurring: true,
+          recurrenceRule: "FREQ=MONTHLY;BYMONTHDAY=1",
+          dueDate: "2026-08-01T17:00:00Z",
+        }),
+      ],
+    });
+
+    expect(layout.placements.map((p) => p.task.title)).toEqual(["Rent"]);
+  });
+
+  it("places a recurring task that has no due date at all", () => {
+    const { layout } = run({
+      windows: [makeWindow(0, "09:00", "12:00")],
+      tasks: [makeTask({ title: "Weekly review", isRecurring: true, dueDate: null })],
+    });
+
+    expect(layout.placements.map((p) => p.task.title)).toEqual(["Weekly review"]);
+  });
+
+  it("does not hold back a one-off task due later", () => {
+    // The rule is about recurring tasks only. Getting ahead on ordinary
+    // work is the point of the scheduler.
+    const { layout } = run({
+      windows: [makeWindow(0, "09:00", "12:00")],
+      tasks: [makeTask({ title: "Sage Creek invoice", dueDate: "2026-10-08T17:00:00Z" })],
+    });
+
+    expect(layout.placements.map((p) => p.task.title)).toEqual(["Sage Creek invoice"]);
+  });
 });
 
 describe("§7 priority", () => {
