@@ -1,6 +1,7 @@
 import "server-only";
 import { CALENDAR_TIME_ZONE } from "@/lib/calendar";
 import { repository } from "@/lib/data";
+import { getSettingsCached, listTasksCached } from "@/lib/data/cached";
 import { CATEGORIES } from "@/lib/domain/categories";
 import {
   addDays,
@@ -27,15 +28,18 @@ export async function loadWeekView(
   weekStart: string,
   now = new Date(),
 ): Promise<WeekView> {
+  // Every read is a round trip to the database, so they all go together.
+  // Sequential awaits here used to cost three trips before a pixel rendered.
   const repo = repository();
-  const [blocks, tasks, settings, windows] = await Promise.all([
+  const [blocks, tasks, settings, windows, events, pending] = await Promise.all([
     repo.listBlocks(weekStart),
-    repo.listTasks(),
-    repo.getSettings(),
+    listTasksCached(),
+    getSettingsCached(),
     repo.listWindows(),
+    wallsForWeek(weekStart),
+    repo.getPendingSchedule(weekStart),
   ]);
 
-  const events = await wallsForWeek(weekStart);
   const walls = toWalls(
     events.filter((event) => !event.isOurs),
     CALENDAR_TIME_ZONE,
@@ -44,7 +48,6 @@ export async function loadWeekView(
 
   const byId = new Map(tasks.map((task) => [task.id, task]));
   const today = isoDate(now, CALENDAR_TIME_ZONE);
-  const pending = await repo.getPendingSchedule(weekStart);
 
   const days: WeekDay[] = [];
 

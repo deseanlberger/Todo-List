@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { repository } from "@/lib/data";
+import { getSettingsCached } from "@/lib/data/cached";
 import { ThemeProvider } from "@/components/theme";
 import "./globals.css";
 
@@ -30,7 +30,7 @@ export default async function RootLayout({
   // database should cost the remembered appearance, not the whole page.
   let theme: "dark" | "light" = "light";
   try {
-    theme = (await repository().getSettings()).theme;
+    theme = (await getSettingsCached()).theme;
   } catch (cause) {
     console.error("Could not read the appearance; falling back to light:", cause);
   }

@@ -288,6 +288,23 @@ button {
   opacity: 0.75;
 }
 
+/* A placeholder row while a screen loads. Deliberately low contrast: it
+   should read as "not here yet", never compete with real content. */
+.shimmer {
+  background: var(--fill);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -425,7 +442,8 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .pressable,
   .sheet-enter,
-  .fade-enter {
+  .fade-enter,
+  .shimmer {
     transition: none;
     animation: none;
   }

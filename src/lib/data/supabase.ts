@@ -31,6 +31,12 @@ import type {
 } from "./repository";
 import { SEED_SETTINGS } from "./seed";
 
+/**
+ * NOTE: the Supabase project lives in `us-west-2`. `vercel.json` pins the
+ * functions to `pdx1` so they sit beside it. Every read below is a round
+ * trip; from the default `iad1` each one crossed the country and back, and
+ * a page makes several. Keep the two regions together.
+ */
 export function supabaseIsConfigured(): boolean {
   return (
     hasEnv("NEXT_PUBLIC_SUPABASE_URL") &&

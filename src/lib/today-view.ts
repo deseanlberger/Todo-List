@@ -1,6 +1,6 @@
 import "server-only";
 import { CALENDAR_TIME_ZONE } from "@/lib/calendar";
-import { repository } from "@/lib/data";
+import { listTasksCached } from "@/lib/data/cached";
 import { CATEGORIES } from "@/lib/domain/categories";
 import { isUrgent } from "@/lib/domain/priority";
 import { isoDate, minutesOfDay } from "@/lib/domain/time";
@@ -12,7 +12,13 @@ export type { TodayView };
 export { CLOSE_OUT_GRACE_MINUTES };
 
 export async function loadTodayView(now = new Date()): Promise<TodayView> {
-  const week = await loadWeekView(currentWeekStart(now), now);
+  // The task list is wanted by both of these. `listTasks` is request-cached,
+  // so asking twice costs one query, and starting them together means the
+  // second is not waiting on the first.
+  const [week, tasks] = await Promise.all([
+    loadWeekView(currentWeekStart(now), now),
+    listTasksCached(),
+  ]);
   const today = isoDate(now, CALENDAR_TIME_ZONE);
   const day = week.days.find((entry) => entry.date === today);
   const nowMinutes = minutesOfDay(now, CALENDAR_TIME_ZONE);
@@ -30,7 +36,6 @@ export async function loadTodayView(now = new Date()): Promise<TodayView> {
     )
     .sort((a, b) => b.end - a.end)[0];
 
-  const tasks = await repository().listTasks();
   const placedToday = new Set(entries.map((entry) => entry.taskId).filter(Boolean));
 
   const nextUp =
