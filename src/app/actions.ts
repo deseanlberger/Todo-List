@@ -9,9 +9,10 @@ import {
 } from "@/lib/data";
 import { claudeIsConfigured, parseCapture } from "@/lib/capture/parse";
 import { CALENDAR_TIME_ZONE } from "@/lib/calendar";
-import { categoryMeta } from "@/lib/domain/categories";
+import { categoryMeta, defaultBlocks, taskMinutes } from "@/lib/domain/categories";
 import { nextOccurrence } from "@/lib/domain/recurrence";
-import { isoDate, minutesOfDay } from "@/lib/domain/time";
+import { isoDate, minutesOfDay, weekOf as weekOfDate } from "@/lib/domain/time";
+import { loadDaySlots, type DaySlot } from "@/lib/day-slots";
 import { minutesToInstant } from "@/lib/scheduler";
 import type { SortMode, Task, TaskCategory, TaskLocation } from "@/lib/domain/types";
 import {
@@ -298,6 +299,88 @@ export async function setTaskDone(taskId: string, done: boolean) {
   });
 
   if (done && task) await rollForward(task);
+  refresh();
+}
+
+/* --------------------------------------------------- placing by hand (§11) */
+
+/** Where a task could go on a given day. Feeds the placement sheet. */
+export async function slotsForDate(date: string): Promise<DaySlot[]> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Bad date");
+  return loadDaySlots(date);
+}
+
+/**
+ * Put a task on the calendar at a time the user picked.
+ *
+ * Schedule my week proposes; this overrides. It writes one block and leaves
+ * the rest of the week alone, and it does NOT refuse an overlap — §11 says
+ * the app warns rather than blocks, so a clash is flagged on the screen and
+ * the user decides. The one thing it does enforce is that a task holds a
+ * single slot: placing it again moves it rather than cloning it.
+ */
+export async function placeTaskAt(input: {
+  taskId: string;
+  /** `YYYY-MM-DD` local. */
+  date: string;
+  /** Minutes from local midnight. */
+  start: number;
+}) {
+  const repo = repository();
+  const task = await repo.getTask(input.taskId);
+  if (!task) throw new Error(`No task ${input.taskId}`);
+
+  const minutes = taskMinutes(task);
+  if (minutes === null) {
+    throw new Error("A delegate task is handed off, not scheduled (§15).");
+  }
+  const end = input.start + minutes;
+
+  await repo.deleteBlocksForTask(task.id);
+  await repo.addBlock({
+    taskId: task.id,
+    startTime: minutesToInstant(input.date, input.start, CALENDAR_TIME_ZONE).toISOString(),
+    endTime: minutesToInstant(input.date, end, CALENDAR_TIME_ZONE).toISOString(),
+    isResetGap: false,
+    isDelegation: false,
+    gcalEventId: null,
+    weekOf: weekOfDate(
+      minutesToInstant(input.date, 12 * 60, CALENDAR_TIME_ZONE),
+      CALENDAR_TIME_ZONE,
+    ),
+  });
+
+  await repo.updateTask(task.id, { status: "scheduled" });
+  refresh("/month");
+}
+
+/** Take it back off the calendar. The task returns to the backlog. */
+export async function unplaceTask(taskId: string) {
+  const repo = repository();
+  await repo.deleteBlocksForTask(taskId);
+  await repo.updateTask(taskId, { status: "backlog" });
+  refresh("/month");
+}
+
+/**
+ * Sort an imported reminder into a real category.
+ *
+ * Nothing was guessed on the way in, so this is the first time the task has
+ * a category it can be scheduled on. Block size follows from the category,
+ * so the estimate is reset to that category's cold-start default (§16)
+ * unless the caller says otherwise.
+ */
+export async function categoriseTask(
+  taskId: string,
+  category: TaskCategory,
+  estimatedBlocks?: number,
+) {
+  const meta = categoryMeta(category);
+  await repository().updateTask(taskId, {
+    category,
+    needsCategory: false,
+    estimatedBlocks: meta.schedules ? (estimatedBlocks ?? defaultBlocks(category)) : 1,
+  });
   refresh();
 }
 

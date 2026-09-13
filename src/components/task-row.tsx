@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { CATEGORIES } from "@/lib/domain/categories";
 import { formatDueShort } from "@/lib/domain/time";
 import type { Task } from "@/lib/domain/types";
@@ -27,6 +26,7 @@ export function TaskRow({
   urgent,
   onRate,
   onToggleDone,
+  onOpen,
   showCategory = true,
 }: {
   task: Task;
@@ -34,13 +34,17 @@ export function TaskRow({
   urgent: boolean;
   onRate: (value: number) => void;
   onToggleDone: (done: boolean) => void;
+  /** Tapping the row. Opens the placement sheet, or the sort sheet. */
+  onOpen: () => void;
   /** Hidden when the group header already says it. */
   showCategory?: boolean;
 }) {
   const done = task.status === "done";
 
   const meta: { text: string; color?: string }[] = [];
-  if (showCategory) {
+  if (task.needsCategory) {
+    meta.push({ text: "Needs sorting", color: "var(--orange, var(--cat-delegate))" });
+  } else if (showCategory) {
     meta.push({ text: sentenceCase(CATEGORIES[task.category].label) });
   }
   meta.push({ text: task.location === "gym" ? "Gym" : "Home" });
@@ -52,11 +56,10 @@ export function TaskRow({
   }
 
   return (
-    <Link
-      href={`/tasks/${task.id}`}
-      className="ios-row ios-row-inset pressable"
-      style={{ alignItems: "flex-start" }}
-    >
+    // A div, not a button: the circle and the stars are buttons of their
+    // own, and a button inside a button is invalid HTML that React refuses
+    // to hydrate. The title carries the row's tap instead.
+    <div className="ios-row ios-row-inset" style={{ alignItems: "flex-start" }}>
       {/* The circle is the category colour, so ticking a task off does not
           cost the one signal that told you what kind of work it was. */}
       <button
@@ -83,7 +86,11 @@ export function TaskRow({
         </span>
       </button>
 
-      <span className="min-w-0 flex-1">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="pressable-solid min-w-0 flex-1 text-left"
+      >
         {/* Wrap rather than truncate: a clipped title is unreadable, and the
             star row leaves too little width to promise one line. */}
         <span
@@ -113,12 +120,18 @@ export function TaskRow({
             </span>
           ))}
         </span>
-      </span>
+      </button>
 
-      <span className="shrink-0 pt-[1px]" onClick={(event) => event.preventDefault()}>
+      <span
+        className="shrink-0 pt-[1px]"
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+      >
         <Stars value={task.financialImpact} onChange={onRate} />
       </span>
-    </Link>
+    </div>
   );
 }
 

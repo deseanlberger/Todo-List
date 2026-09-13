@@ -9,8 +9,17 @@ import type {
 } from "@/lib/domain/types";
 import type { ScheduleDiff } from "@/lib/scheduler";
 
-export type NewTask = Omit<Task, "id" | "userId" | "createdAt"> & {
+/**
+ * Both inbox fields are optional: almost every task is created already
+ * categorised, and only the inbox route sets them.
+ */
+export type NewTask = Omit<
+  Task,
+  "id" | "userId" | "createdAt" | "needsCategory" | "externalId"
+> & {
   id?: string;
+  needsCategory?: boolean;
+  externalId?: string | null;
 };
 
 export type TaskPatch = Partial<Omit<Task, "id" | "userId" | "createdAt">>;
@@ -64,6 +73,18 @@ export interface Repository {
     weekOf: string,
     blocks: Omit<ScheduledBlock, "id" | "userId" | "createdAt">[],
   ): Promise<ScheduledBlock[]>;
+
+  /**
+   * Add one block without touching the rest of the week. `replaceBlocks` is
+   * for the scheduler writing a whole layout; this is for the user placing a
+   * single task by hand, which must not disturb anything already there.
+   */
+  addBlock(
+    block: Omit<ScheduledBlock, "id" | "userId" | "createdAt">,
+  ): Promise<ScheduledBlock>;
+
+  /** Every block belonging to a task, wherever it sits. */
+  deleteBlocksForTask(taskId: string): Promise<void>;
 
   savePendingSchedule(
     pending: Omit<PendingSchedule, "id" | "createdAt">,

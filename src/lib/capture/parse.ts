@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { CALENDAR_TIME_ZONE } from "@/lib/calendar";
 import { hasEnv } from "@/lib/env";
-import { CATEGORIES } from "@/lib/domain/categories";
+import { CATEGORIES, defaultBlocks } from "@/lib/domain/categories";
 import { DEFAULT_TIME_ZONE, WEEKDAY_FULL, zonedParts } from "@/lib/domain/time";
 import type { EstimationSample, TaskCategory, TaskLocation } from "@/lib/domain/types";
 import { CaptureSchema, type CapturedTask } from "./schema";
@@ -178,7 +178,7 @@ export function heuristicParse(input: ParseInput): CapturedTask[] {
       dueDate: null,
       financialImpact: match(lower, HIGH_PRIORITY_WORDS) ? 5 : 2,
       // Cold-start defaults from §16.
-      estimatedBlocks: category === "deep_focus" ? 2 : 1,
+      estimatedBlocks: defaultBlocks(category),
       assignee: assignee ? capitalise(assignee) : null,
     };
   });

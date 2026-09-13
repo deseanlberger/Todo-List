@@ -90,6 +90,8 @@ export class DemoRepository implements Repository {
 
   async createTask(task: NewTask): Promise<Task> {
     const created: Task = {
+      needsCategory: false,
+      externalId: null,
       ...task,
       id: task.id ?? randomUUID(),
       userId: DEMO_USER_ID,
@@ -189,6 +191,23 @@ export class DemoRepository implements Repository {
     }));
     store.blocks.push(...created);
     return clone(created);
+  }
+
+  async addBlock(
+    block: Omit<ScheduledBlock, "id" | "userId" | "createdAt">,
+  ): Promise<ScheduledBlock> {
+    const created: ScheduledBlock = {
+      ...block,
+      id: randomUUID(),
+      userId: DEMO_USER_ID,
+      createdAt: new Date().toISOString(),
+    };
+    state().blocks.push(created);
+    return clone(created);
+  }
+
+  async deleteBlocksForTask(taskId: string): Promise<void> {
+    state().blocks = state().blocks.filter((block) => block.taskId !== taskId);
   }
 
   async savePendingSchedule(

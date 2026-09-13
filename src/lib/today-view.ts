@@ -2,7 +2,7 @@ import "server-only";
 import { CALENDAR_TIME_ZONE } from "@/lib/calendar";
 import { listTasksCached } from "@/lib/data/cached";
 import { CATEGORIES } from "@/lib/domain/categories";
-import { isUrgent } from "@/lib/domain/priority";
+import { byPriority, isUrgent } from "@/lib/domain/priority";
 import { isoDate, minutesOfDay } from "@/lib/domain/time";
 import { currentWeekStart } from "@/lib/schedule-run";
 import { CLOSE_OUT_GRACE_MINUTES, type TodayView } from "@/lib/view-types";
@@ -58,7 +58,30 @@ export async function loadTodayView(now = new Date()): Promise<TodayView> {
       )
       .sort((a, b) => a.date.localeCompare(b.date) || a.start - b.start)[0] ?? null;
 
+  // Anything open that holds no block anywhere in the week. The home screen
+  // shows it beside the day so the backlog is visible without leaving.
+  const placedAnywhere = new Set(
+    week.days.flatMap((entry) =>
+      entry.entries.map((item) => item.taskId).filter(Boolean),
+    ),
+  );
+
+  const open = tasks.filter((task) => task.status !== "done");
+
   return {
+    unscheduled: byPriority(
+      open.filter(
+        (task) =>
+          !task.needsCategory &&
+          // Delegate is handed off in the delegation block, never placed as
+          // itself. It lives on the Delegate tab.
+          CATEGORIES[task.category].schedules &&
+          !placedAnywhere.has(task.id),
+      ),
+      now,
+      CALENDAR_TIME_ZONE,
+    ),
+    needsSorting: open.filter((task) => task.needsCategory),
     date: today,
     dayIndex: day?.dayIndex ?? 0,
     entries,

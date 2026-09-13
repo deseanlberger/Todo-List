@@ -89,6 +89,10 @@ export function planWeek(input: PlanInput): Layout {
   const weekEnd = addDays(input.weekStart, 7);
   const schedulable = tasks.filter((task) => {
     if (task.status === "done" || !categoryMeta(task.category).schedules) return false;
+    // Its category is a placeholder until the user sorts it, and category
+    // decides block size, allowance and priority weight. Scheduling on a
+    // placeholder would put the task in the wrong place confidently.
+    if (task.needsCategory) return false;
     if (!task.isRecurring || !task.dueDate) return true;
     return isoDate(new Date(task.dueDate), timeZone) < weekEnd;
   });

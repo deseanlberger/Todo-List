@@ -241,6 +241,8 @@ export function seedTasks(now: Date): Task[] {
     location: spec.location,
     estimatedBlocks: spec.blocks,
     actualBlocks: null,
+    needsCategory: false,
+    externalId: null,
     dueDate:
       spec.dueInHours === undefined
         ? null
