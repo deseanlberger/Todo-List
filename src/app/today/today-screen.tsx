@@ -7,8 +7,8 @@ import { AlertCircle, Check } from "lucide-react";
 import { scheduleMyWeek, setTaskDone } from "@/app/actions";
 import { ActionBar, Content, Header, SettingsGear, TabBar } from "@/components/chrome";
 import { QuickAddButton } from "@/components/quick-add";
-import { Button, Dot, EmptyState, Group, categoryColor } from "@/components/ui";
-import { CATEGORIES } from "@/lib/domain/categories";
+import { Button, Dot, EmptyState, Group, Row, categoryColor } from "@/components/ui";
+import { CATEGORIES, taskMinutes } from "@/lib/domain/categories";
 import {
   WEEKDAY_FULL,
   formatClock12,
@@ -17,6 +17,8 @@ import {
 } from "@/lib/domain/time";
 import type { Task } from "@/lib/domain/types";
 import type { TodayView, WeekEntry } from "@/lib/view-types";
+import { PlaceSheet } from "@/components/place-sheet";
+import { SortSheet } from "@/components/sort-sheet";
 import { CloseOutSheet } from "./close-out-sheet";
 
 export function TodayScreen({
@@ -32,6 +34,7 @@ export function TodayScreen({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [ticked, setTicked] = useState<Record<string, boolean>>({});
   const [hideDone, setHideDone] = useState(false);
+  const [opened, setOpened] = useState<Task | null>(null);
 
   // Remember the choice per device. Storage can throw in a private window,
   // and a missing preference is not worth breaking the screen over.
@@ -169,6 +172,48 @@ export function TodayScreen({
             </Group>
           </>
         )}
+
+        {view.needsSorting.length > 0 ? (
+          <Group
+            header={
+              <span className="flex items-center gap-2">
+                <span>From Reminders</span>
+                <span style={{ color: "var(--label-3)" }}>{view.needsSorting.length}</span>
+              </span>
+            }
+            footer="Nothing was guessed. Tap one to say what kind of work it is, then it can be scheduled."
+          >
+            {view.needsSorting.map((task) => (
+              <Row key={task.id} chevron onClick={() => setOpened(task)}>
+                <span className="t-body flex-1 text-left">{task.title}</span>
+              </Row>
+            ))}
+          </Group>
+        ) : null}
+
+        {view.unscheduled.length > 0 ? (
+          <Group
+            header={
+              <span className="flex items-center gap-2">
+                <span>Not on the calendar</span>
+                <span style={{ color: "var(--label-3)" }}>{view.unscheduled.length}</span>
+              </span>
+            }
+            footer="Tap one to drop it into a slot, today or any day."
+          >
+            {view.unscheduled.slice(0, 12).map((task) => (
+              <Row key={task.id} chevron onClick={() => setOpened(task)}>
+                <Dot color={categoryColor(task.category)} />
+                <span className="min-w-0 flex-1 text-left">
+                  <span className="t-body block truncate">{task.title}</span>
+                  <span className="t-footnote block" style={{ color: "var(--label-2)" }}>
+                    {taskMinutes(task) ?? 0} min
+                  </span>
+                </span>
+              </Row>
+            ))}
+          </Group>
+        ) : null}
       </Content>
 
       {active ? (
@@ -187,6 +232,18 @@ export function TodayScreen({
       ) : null}
 
       <TabBar />
+
+      {opened ? (
+        opened.needsCategory ? (
+          <SortSheet task={opened} onClose={() => setOpened(null)} />
+        ) : (
+          <PlaceSheet
+            task={opened}
+            initialDate={view.date}
+            onClose={() => setOpened(null)}
+          />
+        )
+      ) : null}
 
       {sheetOpen && active?.taskId ? (
         <CloseOutSheet
@@ -375,6 +432,19 @@ function TimelineRow({
                 .join(" · ")}
         </span>
       </span>
+
+      {entry.clashes ? (
+        <span
+          className="t-caption2 shrink-0 rounded-full px-2 py-[3px]"
+          style={{
+            background: "color-mix(in srgb, var(--red) 14%, transparent)",
+            color: "var(--red)",
+            fontWeight: 600,
+          }}
+        >
+          Overlaps
+        </span>
+      ) : null}
 
       {isActive ? (
         <span

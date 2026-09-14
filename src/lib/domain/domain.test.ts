@@ -26,6 +26,7 @@ function task(overrides: Partial<Task> = {}): Task {
     financialImpact: 3, assignee: null, handedOffAt: null,
     status: "backlog", isRecurring: false, recurrenceRule: null,
     reminderLeadDays: 1, captureSource: "manual", captureTranscript: null,
+    needsCategory: false, externalId: null,
     createdAt: "2026-09-01T00:00:00Z", completedAt: null,
     ...overrides,
   };

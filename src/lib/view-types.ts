@@ -38,6 +38,12 @@ export interface WeekEntry {
   isFree?: boolean;
   /** What may land here. Set on free slots; what gives them their colour. */
   allowance?: WindowAllowance;
+  /**
+   * Something else occupies the same minutes. §11 allows it — the user can
+   * place a task on top of another — so the day says so rather than
+   * pretending the clash is not there.
+   */
+  clashes?: boolean;
 }
 
 export interface WeekDay {
@@ -79,6 +85,10 @@ export interface TodayView {
   urgentUnplaced: Task[];
   /** Everything open, for the swap picker inside the close-out sheet. */
   swapCandidates: Task[];
+  /** Sorted, but not on the calendar anywhere yet. */
+  unscheduled: Task[];
+  /** Arrived from Reminders and still has no category. */
+  needsSorting: Task[];
   /**
    * The next scheduled block after today, when there is one. Today can be
    * legitimately empty while the week ahead is full — saying so beats

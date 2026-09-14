@@ -304,6 +304,27 @@ export class SupabaseRepository implements Repository {
     return rows.map(toBlock);
   }
 
+  async addBlock(
+    block: Omit<ScheduledBlock, "id" | "userId" | "createdAt">,
+  ): Promise<ScheduledBlock> {
+    const { data, error } = await this.db
+      .from("scheduled_blocks")
+      .insert(fromBlock({ ...block, userId: this.userId }))
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return toBlock(data);
+  }
+
+  async deleteBlocksForTask(taskId: string): Promise<void> {
+    const { error } = await this.db
+      .from("scheduled_blocks")
+      .delete()
+      .eq("user_id", this.userId)
+      .eq("task_id", taskId);
+    if (error) throw new Error(error.message);
+  }
+
   async savePendingSchedule(
     pending: Omit<PendingSchedule, "id" | "createdAt">,
   ): Promise<PendingSchedule> {

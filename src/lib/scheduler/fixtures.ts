@@ -39,6 +39,8 @@ export function makeTask(overrides: Partial<Task> = {}): Task {
     reminderLeadDays: 1,
     captureSource: "manual",
     captureTranscript: null,
+    needsCategory: false,
+    externalId: null,
     createdAt: "2026-09-01T00:00:00Z",
     completedAt: null,
     ...overrides,

@@ -10,6 +10,7 @@ import {
   parseClock,
 } from "@/lib/domain/time";
 import type { Task } from "@/lib/domain/types";
+import { subtract } from "@/lib/domain/intervals";
 import { toWalls } from "@/lib/scheduler";
 import { eventIsAtGym } from "@/lib/scheduler/location";
 import type { WeekDay, WeekEntry, WeekView } from "@/lib/view-types";
@@ -122,7 +123,7 @@ export async function loadWeekView(
       .filter((window) => window.weekday === dayIndex && window.allowance !== "no_work")
       .flatMap((window) =>
         subtract(parseClock(window.startTime), parseClock(window.endTime), taken).map(
-          ([start, end]) => ({
+          ({ start, end }) => ({
             taskId: null,
             title: window.label?.trim() || ALLOWANCE_TITLE[window.allowance],
             category: null,
@@ -145,6 +146,16 @@ export async function loadWeekView(
       ...blockEntries,
       ...freeEntries,
     ].sort((a, b) => a.start - b.start || a.end - b.end);
+
+    // Placing by hand may double-book (§11 warns rather than blocks), so
+    // mark every real entry that shares minutes with another one.
+    const solid = entries.filter((entry) => !entry.isFree && !entry.isReset);
+    for (const entry of solid) {
+      entry.clashes = solid.some(
+        (other) =>
+          other !== entry && other.start < entry.end && entry.start < other.end,
+      );
+    }
     const work = entries.filter(
       (entry) => !entry.locked && !entry.isReset && !entry.isFree,
     );
@@ -209,31 +220,3 @@ const ALLOWANCE_TITLE: Record<string, string> = {
   no_work: "Closed",
 };
 
-/**
- * `[start, end)` with every interval in `busy` removed, as the pieces that
- * survive. Used to find the part of a window nothing has claimed.
- *
- * A leftover under 5 minutes is dropped: it is a rounding artefact, not time
- * anyone can use, and rendering it would litter the day with slivers.
- */
-function subtract(
-  start: number,
-  end: number,
-  busy: { start: number; end: number }[],
-): [number, number][] {
-  const overlapping = busy
-    .filter((slot) => slot.end > start && slot.start < end)
-    .sort((a, b) => a.start - b.start);
-
-  const pieces: [number, number][] = [];
-  let cursor = start;
-
-  for (const slot of overlapping) {
-    if (slot.start > cursor) pieces.push([cursor, Math.min(slot.start, end)]);
-    cursor = Math.max(cursor, slot.end);
-    if (cursor >= end) break;
-  }
-  if (cursor < end) pieces.push([cursor, end]);
-
-  return pieces.filter(([from, to]) => to - from >= 5);
-}

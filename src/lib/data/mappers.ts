@@ -30,6 +30,8 @@ export function toTask(row: any): Task {
     reminderLeadDays: row.reminder_lead_days,
     captureSource: row.capture_source ?? null,
     captureTranscript: row.capture_transcript ?? null,
+    needsCategory: row.needs_category ?? false,
+    externalId: row.external_id ?? null,
     createdAt: row.created_at,
     completedAt: row.completed_at ?? null,
   };
@@ -58,6 +60,8 @@ export function fromTask(task: Partial<Task>): Record<string, unknown> {
   put("reminder_lead_days", task.reminderLeadDays);
   put("capture_source", task.captureSource);
   put("capture_transcript", task.captureTranscript);
+  put("needs_category", task.needsCategory);
+  put("external_id", task.externalId);
   put("completed_at", task.completedAt);
   return row;
 }

@@ -1,8 +1,11 @@
 "use client";
 
 import { useMemo, useOptimistic, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronRight, Plus, Search, X } from "lucide-react";
 import { saveSortMode, setImportance, setTaskDone } from "@/app/actions";
+import { PlaceSheet } from "@/components/place-sheet";
+import { SortSheet } from "@/components/sort-sheet";
 import { Content, Header, IconButton, SettingsGear, TabBar } from "@/components/chrome";
 import { QuickAddButton } from "@/components/quick-add";
 import { TaskRow } from "@/components/task-row";
@@ -35,16 +38,30 @@ export function AllTasks({
   timeZone,
   initialSort,
   nowIso,
+  today,
 }: {
   tasks: Task[];
   timeZone: string;
   initialSort: SortMode;
   nowIso: string;
+  today: string;
 }) {
+  const router = useRouter();
   const [sort, setSort] = useState<SortMode>(initialSort);
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [showDone, setShowDone] = useState(false);
+  const [opened, setOpened] = useState<Task | null>(null);
+
+  // Delegate is handed off, never placed on the calendar (§15), so tapping
+  // one opens its detail rather than a slot picker it has no use for.
+  const openTask = (task: Task) => {
+    if (!task.needsCategory && !CATEGORIES[task.category].schedules) {
+      router.push(`/tasks/${task.id}`);
+      return;
+    }
+    setOpened(task);
+  };
   const [, startTransition] = useTransition();
 
   // Both edits must feel instant; the write follows behind. One reducer for
@@ -186,6 +203,7 @@ export function AllTasks({
                 urgent={isUrgent(task, now)}
                 onRate={(value) => rate(task, value)}
                 onToggleDone={(done) => toggleDone(task, done)}
+                onOpen={() => openTask(task)}
                 showCategory={sort !== "category"}
               />
             ))}
@@ -226,6 +244,7 @@ export function AllTasks({
                   urgent={false}
                   onRate={(value) => rate(task, value)}
                   onToggleDone={(value) => toggleDone(task, value)}
+                  onOpen={() => openTask(task)}
                 />
               ))
             ) : (
@@ -240,6 +259,14 @@ export function AllTasks({
       </Content>
 
       <TabBar />
+
+      {opened ? (
+        opened.needsCategory ? (
+          <SortSheet task={opened} onClose={() => setOpened(null)} />
+        ) : CATEGORIES[opened.category].schedules ? (
+          <PlaceSheet task={opened} initialDate={today} onClose={() => setOpened(null)} />
+        ) : null
+      ) : null}
     </>
   );
 }

@@ -100,6 +100,29 @@ export function categoryMeta(category: TaskCategory): CategoryMeta {
  * Minutes in one block for a category. Delegate has no block size; callers
  * that reach here with a delegate task have a bug upstream.
  */
+/**
+ * §16 cold-start estimate: deep focus starts at 2 blocks, admin at 1.
+ * What a task gets before any history exists to estimate from.
+ */
+export function defaultBlocks(category: TaskCategory): number {
+  return category === "deep_focus" ? 2 : 1;
+}
+
+/**
+ * How much calendar time a task needs, or null when it needs none.
+ *
+ * Delegate is the null case (§15): it is handed off in the delegation block,
+ * never scheduled as itself. `blockMinutes` throws for it on purpose, so
+ * anything that might be handed a delegate task asks here instead.
+ */
+export function taskMinutes(task: {
+  category: TaskCategory;
+  estimatedBlocks: number;
+}): number | null {
+  const minutes = CATEGORIES[task.category].blockMinutes;
+  return minutes === null ? null : minutes * Math.max(1, task.estimatedBlocks);
+}
+
 export function blockMinutes(category: TaskCategory): number {
   const minutes = CATEGORIES[category].blockMinutes;
   if (minutes === null) {

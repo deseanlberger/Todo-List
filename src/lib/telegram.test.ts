@@ -10,6 +10,7 @@ function task(overrides: Partial<Task> = {}): Task {
     dueDate: "2026-09-09T17:00:00Z", financialImpact: 5,
     assignee: null, handedOffAt: null, status: "backlog",
     isRecurring: false, recurrenceRule: null, reminderLeadDays: 1,
+    needsCategory: false, externalId: null,
     captureSource: "telegram_voice", captureTranscript: null,
     createdAt: "2026-09-03T00:00:00Z", completedAt: null,
     ...overrides,

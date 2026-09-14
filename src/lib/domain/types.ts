@@ -16,7 +16,11 @@ export type TaskStatus = "backlog" | "scheduled" | "done";
 
 export type WindowAllowance = "any" | "deep_focus" | "admin_only" | "no_work";
 
-export type CaptureSource = "telegram_voice" | "telegram_text" | "manual";
+export type CaptureSource =
+  | "telegram_voice"
+  | "telegram_text"
+  | "manual"
+  | "reminders";
 
 export interface Task {
   id: string;
@@ -40,6 +44,14 @@ export interface Task {
   reminderLeadDays: number;
   captureSource: CaptureSource | null;
   captureTranscript: string | null;
+  /**
+   * Arrived from outside and has not been sorted yet. While true the stored
+   * `category` is a placeholder, not a guess, and the scheduler leaves the
+   * task alone.
+   */
+  needsCategory: boolean;
+  /** Stable id from wherever it came from, so it imports exactly once. */
+  externalId: string | null;
   createdAt: string;
   completedAt: string | null;
 }
