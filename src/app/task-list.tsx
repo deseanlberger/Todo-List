@@ -9,6 +9,7 @@ import { QuickAddButton } from "@/components/quick-add";
 import { TaskRow } from "@/components/task-row";
 import { EmptyState, Group } from "@/components/ui";
 import { CATEGORY_ORDER, LIST_LABELS } from "@/lib/domain/categories";
+import { HORIZON_DAYS, dueDay, partitionByHorizon } from "@/lib/domain/horizon";
 import type { Task, TaskCategory } from "@/lib/domain/types";
 
 /**
@@ -44,6 +45,7 @@ export function TaskList({
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [showDone, setShowDone] = useState(false);
+  const [showLater, setShowLater] = useState(false);
   const [, startTransition] = useTransition();
 
   const [optimistic, applyDone] = useOptimistic(
@@ -76,14 +78,27 @@ export function TaskList({
   const open = matching.filter((task) => task.status !== "done");
   const done = matching.filter((task) => task.status === "done");
 
-  const groups = useMemo(() => groupByCategory(open), [open]);
+  // A search is a deliberate hunt, so it reaches everything. Only the
+  // everyday list hides what he cannot start yet.
+  const searchingAll = query.trim().length > 0;
+
+  const { now, later } = useMemo(
+    () =>
+      searchingAll
+        ? { now: open, later: [] as Task[] }
+        : partitionByHorizon(open, today, timeZone),
+    [open, searchingAll, today, timeZone],
+  );
+
+  const groups = useMemo(() => groupByCategory(now), [now]);
+  const upcoming = useMemo(() => byDue(later), [later]);
 
   return (
     <>
       <Header
         badge
         title="Tasks"
-        subtitle={open.length === 0 ? "Nothing left" : `${open.length} to do`}
+        subtitle={subtitle(now.length, later.length)}
         trailing={
           <>
             <IconButton
@@ -142,7 +157,7 @@ export function TaskList({
                   key={task.id}
                   task={task}
                   timeZone={timeZone}
-                  urgent={isDueSoon(task, today)}
+                  urgent={isDueSoon(task, today, timeZone)}
                   onToggleDone={(value) => toggleDone(task, value)}
                   onOpen={() => router.push(`/tasks/${task.id}`)}
                   showCategory={false}
@@ -151,6 +166,34 @@ export function TaskList({
             </Group>
           </section>
         ))}
+
+        {upcoming.length > 0 ? (
+          <section className="mb-6">
+            <button
+              type="button"
+              onClick={() => setShowLater((was) => !was)}
+              className="ios-group-header pressable w-full text-left"
+            >
+              {showLater ? "Hide" : "Show"} {upcoming.length} later
+            </button>
+            {showLater ? (
+              <Group
+                footer={`Due more than ${HORIZON_DAYS} days out. Soonest first.`}
+              >
+                {upcoming.map((task) => (
+                  <TaskRow
+                    key={task.id}
+                    task={task}
+                    timeZone={timeZone}
+                    urgent={false}
+                    onToggleDone={(value) => toggleDone(task, value)}
+                    onOpen={() => router.push(`/tasks/${task.id}`)}
+                  />
+                ))}
+              </Group>
+            ) : null}
+          </section>
+        ) : null}
 
         {done.length > 0 ? (
           <section className="mb-6">
@@ -218,7 +261,21 @@ function byDue(tasks: Task[]): Task[] {
 }
 
 /** Today or overdue. Drives the red on the row. */
-function isDueSoon(task: Task, today: string): boolean {
-  if (!task.dueDate || task.status === "done") return false;
-  return task.dueDate.slice(0, 10) <= today;
+function isDueSoon(task: Task, today: string, timeZone: string): boolean {
+  if (task.status === "done") return false;
+  const day = dueDay(task, timeZone);
+  return day !== null && day <= today;
+}
+
+/**
+ * The line under the title.
+ *
+ * It names the hidden pile rather than leaving him to wonder where a task
+ * he remembers writing down went.
+ */
+function subtitle(open: number, later: number): string {
+  if (open === 0 && later === 0) return "Nothing left";
+  if (open === 0) return `Nothing now, ${later} later`;
+  if (later === 0) return `${open} to do`;
+  return `${open} to do, ${later} later`;
 }

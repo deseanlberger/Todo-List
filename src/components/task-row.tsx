@@ -1,6 +1,6 @@
 "use client";
 
-import { CATEGORIES } from "@/lib/domain/categories";
+import { LIST_LABELS } from "@/lib/domain/categories";
 import { formatDueShort } from "@/lib/domain/time";
 import type { Task } from "@/lib/domain/types";
 import { Check } from "lucide-react";
@@ -10,10 +10,6 @@ import { Dot, categoryColor } from "./ui";
 export function blockCountLabel(task: Task): string {
   if (task.category === "delegate") return "Handoff";
   return `${task.estimatedBlocks} block${task.estimatedBlocks === 1 ? "" : "s"}`;
-}
-
-function sentenceCase(value: string): string {
-  return value.charAt(0) + value.slice(1).toLowerCase();
 }
 
 /**
@@ -43,7 +39,9 @@ export function TaskRow({
   if (task.needsCategory) {
     meta.push({ text: "Needs sorting", color: "var(--orange, var(--cat-delegate))" });
   } else if (showCategory) {
-    meta.push({ text: sentenceCase(CATEGORIES[task.category].label) });
+    // His list name, not this codebase's. The header above a group says
+    // "Deep Admin"; a row loose in the Later list must say the same thing.
+    meta.push({ text: LIST_LABELS[task.category] });
   }
   // Only the gym is worth saying. "Home" on every row is noise, because
   // home is where almost everything happens.
