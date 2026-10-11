@@ -64,26 +64,33 @@ export async function parseCapture(input: ParseInput): Promise<CapturedTask[]> {
   }
 }
 
-function systemPrompt(input: ParseInput): string {
-  const timeZone = input.timeZone ?? CALENDAR_TIME_ZONE ?? DEFAULT_TIME_ZONE;
-  const parts = zonedParts(input.now, timeZone);
-  const today = `${WEEKDAY_FULL[parts.weekday]}, ${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
+/** `Monday, 2026-10-12` in the given zone. */
+export function todayLine(now: Date, timeZone: string): string {
+  const parts = zonedParts(now, timeZone);
+  return `${WEEKDAY_FULL[parts.weekday]}, ${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
+}
 
-  const examples = input.history
+/** His real completions, for calibrating estimates. */
+export function historyLines(history: EstimationSample[]): string {
+  return history
     .slice(0, 50)
     .map(
       (sample) =>
         `- "${sample.title}" (${sample.category}): estimated ${sample.estimatedBlocks}, actually took ${sample.actualBlocks}`,
     )
     .join("\n");
+}
 
-  return `You turn captured messages from a strength coach into structured tasks for his scheduler.
-
-Today is ${today}. His timezone is ${timeZone}. He owns a private strength and conditioning gym and also contracts with high school and college teams.
-
-Split the message into separate tasks when it contains more than one. A single errand is one task.
-
-CATEGORIES — pick exactly one:
+/**
+ * How a task is bucketed, worded once.
+ *
+ * Voice capture and the Reminders inbox both have to make this same call, and
+ * two copies of these definitions would drift the moment one was tuned — the
+ * same words would then mean different things depending on where a task came
+ * in. Anything specific to one entry point belongs in its own prompt, not
+ * here.
+ */
+export const TAXONOMY_RULES = `CATEGORIES — pick exactly one:
 - deep_focus: writing programs, anything needing real uninterrupted thinking. 45 minutes a block.
 - high_priority_admin: business items with a deadline — payroll, invoices, contracts, a call he owes someone. 30 minutes a block.
 - low_priority_admin: gym housekeeping and nice-to-haves — ordering supplies, fixing equipment, tidying. 30 minutes a block.
@@ -105,7 +112,19 @@ FINANCIAL IMPACT, 1 to 5:
 - 2: helpful but not urgent.
 - 1: tidying, reorganising.
 
-ESTIMATED BLOCKS — guess it, never ask. Cold-start defaults are 2 blocks for deep focus and 1 for everything else. Delegate tasks are always 1.
+ESTIMATED BLOCKS — guess it, never ask. Cold-start defaults are 2 blocks for deep focus and 1 for everything else. Delegate tasks are always 1.`;
+
+function systemPrompt(input: ParseInput): string {
+  const timeZone = input.timeZone ?? CALENDAR_TIME_ZONE ?? DEFAULT_TIME_ZONE;
+  const examples = historyLines(input.history);
+
+  return `You turn captured messages from a strength coach into structured tasks for his scheduler.
+
+Today is ${todayLine(input.now, timeZone)}. His timezone is ${timeZone}. He owns a private strength and conditioning gym and also contracts with high school and college teams.
+
+Split the message into separate tasks when it contains more than one. A single errand is one task.
+
+${TAXONOMY_RULES}
 ${examples ? `\nHis actual history, use it to calibrate:\n${examples}` : ""}
 
 Write the title as he would say it, in sentence case, with no trailing period.`;

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Runs the reminder sync every morning at 6:05am.
+
+  Install:
+    1. Edit the path in ProgramArguments below to where you cloned this repo.
+    2. cp com.odyssey.reminders-sync.plist ~/Library/LaunchAgents/
+    3. launchctl load ~/Library/LaunchAgents/com.odyssey.reminders-sync.plist
+
+  Unlike cron, launchd DEFERS a StartCalendarInterval run it missed: if the
+  Mac is asleep at 6:05 the job fires on wake rather than being skipped for
+  the day. That is why a sleeping Mac is not a problem here.
+
+  RunAtLoad is false on purpose. True would fire the sync on every login and
+  on every launchctl load, which turns a once-a-day import into noise.
+
+  Output goes to the two files below so a morning that failed can be read
+  afterwards instead of guessed at. They live in /tmp, which macOS clears on
+  restart — fine for "why did today fail", not a permanent log.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.odyssey.reminders-sync</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <!-- EDIT THIS to the real path on your Mac. -->
+    <string>/Users/CHANGE_ME/Todo-List/scripts/mac-reminders/sync-reminders.sh</string>
+  </array>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>6</integer>
+    <key>Minute</key>
+    <integer>5</integer>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/odyssey-reminders-sync.out</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/odyssey-reminders-sync.err</string>
+</dict>
+</plist>
