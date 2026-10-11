@@ -148,10 +148,26 @@ function clamp(value: number, min: number, max: number): number {
 
 /* --------------------------------------------------------------- fallback */
 
+/**
+ * Work that can only happen at the building.
+ *
+ * Location is not cosmetic: a task tagged home will not be placed in gym
+ * time and vice versa, so a wrong tag schedules work for a moment he
+ * physically cannot do it. The first list was all training equipment and
+ * missed the building itself — "Check lobby temp, then lock the Nest at
+ * 83/85" came in tagged home, which would have put closing up the gym in
+ * a window where he is at his desk.
+ */
 const GYM_WORDS = [
+  // Training floor
   "rack", "platform", "turf", "gym", "equipment", "bar", "plates", "chalk",
   "clean", "floor", "sled", "band", "dumbbell", "machine", "facility", "fix",
   "repair", "order",
+  // The building: opening, closing, and everything physically in it
+  "lobby", "nest", "thermostat", "temp", "door", "lock up", "lock the",
+  "unlock", "close up", "closing", "open up", "front desk", "bathroom",
+  "restroom", "trash", "vacuum", "mop", "mirror", "speaker", "tv", "wifi",
+  "printer", "whiteboard", "parking", "suite", "thibodo", "ac", "heater",
 ];
 
 const DEEP_FOCUS_WORDS = [
