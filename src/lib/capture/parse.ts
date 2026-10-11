@@ -166,7 +166,41 @@ const HIGH_PRIORITY_WORDS = [
 
 const PERSONAL_WORDS = ["dentist", "doctor", "birthday", "family", "haircut", "lift"];
 
-const DELEGATE_WORDS = ["annie", "jake", "ty", "matthew", "michael", "megan", "d'lainey", "dlainey"];
+const COACHES = "annie|jake|ty|matthew|michael|megan|d'?lainey";
+
+/**
+ * Handing work TO a coach, as against doing work ABOUT one.
+ *
+ * A coach's name on its own means nothing. Desean's reminders are full of
+ * lines like "D'Lainey: check force plate numbers (test 1)", whose own
+ * notes read "Ask Claude to vald-pull her numbers" — that is his job, with
+ * her name as the subject. He confirmed it: a name prefix says who the task
+ * is about, not who it goes to. Matching on the bare name filed seven of
+ * his twelve reminders as delegated work that would never have been
+ * scheduled at all.
+ *
+ * So delegation has to be said, not implied: a verb that actually hands it
+ * over, or the coach as the subject of one.
+ */
+const HANDOFF_PATTERNS = [
+  new RegExp(String.raw`\b(?:have|ask|get|tell|remind)\s+(${COACHES})\b`, "i"),
+  new RegExp(String.raw`\bhand(?:\s+it)?(?:\s+off)?\s+to\s+(${COACHES})\b`, "i"),
+  new RegExp(String.raw`\b(?:delegate|assign)\s+(?:\w+\s+)?to\s+(${COACHES})\b`, "i"),
+  new RegExp(String.raw`\b(${COACHES})\s+(?:can|should|needs to|will|is)\b`, "i"),
+];
+
+/** A leading "Name:" is a subject tag, never a handoff. */
+const SUBJECT_TAG = new RegExp(String.raw`^\s*(?:${COACHES})\s*:`, "i");
+
+/** The coach this is being handed to, or null when nobody is. */
+function handoffTarget(text: string): string | null {
+  if (SUBJECT_TAG.test(text)) return null;
+  for (const pattern of HANDOFF_PATTERNS) {
+    const match = pattern.exec(text);
+    if (match) return match[1];
+  }
+  return null;
+}
 
 /**
  * No credentials, no problem: keyword matching gets the task into the
@@ -176,7 +210,7 @@ export function heuristicParse(input: ParseInput): CapturedTask[] {
   return splitSentences(input.text).map((sentence) => {
     const lower = sentence.toLowerCase();
 
-    const assignee = DELEGATE_WORDS.find((name) => lower.includes(name)) ?? null;
+    const assignee = handoffTarget(sentence);
     const category: TaskCategory = assignee
       ? "delegate"
       : match(lower, DEEP_FOCUS_WORDS)

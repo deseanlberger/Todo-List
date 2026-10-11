@@ -61,3 +61,44 @@ describe("capture fallback parser", () => {
     expect(CaptureSchema.safeParse({ tasks }).success).toBe(true);
   });
 });
+
+describe("a coach's name is not a handoff", () => {
+  const now = new Date("2026-10-11T16:00:00Z");
+  const sort = (text: string) => heuristicParse({ text, history: [], now })[0];
+
+  it("treats a leading 'Name:' as the subject, not the assignee", () => {
+    // Desean's real reminders read like this, and their own notes say
+    // "Ask Claude to vald-pull her numbers" — his job, her data. He
+    // confirmed it directly. Reading the name as a handoff filed seven of
+    // his twelve reminders as delegated work that would never be scheduled.
+    for (const title of [
+      "D'Lainey: check force plate numbers (test 1)",
+      "D'Lainey: end of Block 1, check her programming",
+      "Ty: review his squat video",
+    ]) {
+      expect(sort(title).category, title).not.toBe("delegate");
+      expect(sort(title).assignee, title).toBeNull();
+    }
+  });
+
+  it("still catches an actual handoff", () => {
+    const cases: [string, string][] = [
+      ["Have Ty cover the 4pm Tuesday", "Ty"],
+      ["Ask Jake to reset the platforms", "Jake"],
+      ["Get Megan to run the adult class", "Megan"],
+      ["Hand it off to Matthew", "Matthew"],
+      ["Tell Annie to call the Breakers parent back", "Annie"],
+      ["Ty can cover Tuesday", "Ty"],
+    ];
+    for (const [text, who] of cases) {
+      const task = sort(text);
+      expect(task.category, text).toBe("delegate");
+      expect(task.assignee?.toLowerCase(), text).toBe(who.toLowerCase());
+    }
+  });
+
+  it("leaves work that mentions nobody alone", () => {
+    expect(sort("Return the chair to Costco").category).not.toBe("delegate");
+    expect(sort("Order more chalk").category).not.toBe("delegate");
+  });
+});
