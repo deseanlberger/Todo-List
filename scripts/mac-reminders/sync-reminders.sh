@@ -2,10 +2,12 @@
 #
 # Reads open reminders out of Reminders.app and posts them to the scheduler.
 #
-#   ./sync-reminders.sh              send them
 #   ./sync-reminders.sh --dry-run    print what would be sent, send nothing
+#   ./sync-reminders.sh              send them
 #
-# Config lives in config.sh next to this script. See README.md.
+# --dry-run needs no config and no secret: it reads Reminders and prints,
+# which is exactly what you want to check BEFORE setting anything up.
+# Sending needs config.sh. See README.md.
 
 set -euo pipefail
 
@@ -13,16 +15,20 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DRY_RUN=0
 [ "${1:-}" = "--dry-run" ] && DRY_RUN=1
 
-if [ ! -f "$DIR/config.sh" ]; then
-  echo "No config.sh. Copy config.example.sh to config.sh and fill it in." >&2
+# Config is required to send and optional to preview.
+if [ -f "$DIR/config.sh" ]; then
+  # shellcheck source=/dev/null
+  . "$DIR/config.sh"
+elif [ "$DRY_RUN" = "0" ]; then
+  echo "No config.sh. Copy config.example.sh to config.sh and fill it in," >&2
+  echo "or run with --dry-run to read your reminders without sending." >&2
   exit 1
 fi
 
-# shellcheck source=/dev/null
-. "$DIR/config.sh"
-
-: "${APP_URL:?APP_URL is not set in config.sh}"
-: "${INBOX_SECRET:?INBOX_SECRET is not set in config.sh}"
+if [ "$DRY_RUN" = "0" ]; then
+  : "${APP_URL:?APP_URL is not set in config.sh}"
+  : "${INBOX_SECRET:?INBOX_SECRET is not set in config.sh}"
+fi
 
 PAYLOAD="$(osascript -l JavaScript "$DIR/read-reminders.js")"
 
@@ -39,12 +45,18 @@ if printf '%s' "$PAYLOAD" | grep -q '"error"'; then
   exit 1
 fi
 
-COUNT="$(printf '%s' "$PAYLOAD" | /usr/bin/python3 -c 'import json,sys; print(len(json.load(sys.stdin).get("items", [])))' 2>/dev/null || echo "?")"
+# Counted with grep, not python3: on a Mac with no Command Line Tools
+# installed, /usr/bin/python3 is a stub that pops an install dialog, and a
+# launchd job at 6am must never wait on a dialog nobody is there to click.
+COUNT="$(printf '%s' "$PAYLOAD" | grep -o '"title"' | wc -l | tr -d ' ')"
 
 if [ "$DRY_RUN" = "1" ]; then
-  echo "Would post $COUNT reminders to $APP_URL/api/inbox"
+  echo "Read $COUNT reminders. Sending nothing."
+  [ -n "${APP_URL:-}" ] && echo "A real run would post them to $APP_URL/api/inbox"
   echo
-  printf '%s' "$PAYLOAD" | /usr/bin/python3 -m json.tool 2>/dev/null || printf '%s\n' "$PAYLOAD"
+  # plutil ships with macOS and needs no developer tools.
+  printf '%s' "$PAYLOAD" | plutil -convert json -r -o - -- - 2>/dev/null \
+    || printf '%s\n' "$PAYLOAD"
   exit 0
 fi
 

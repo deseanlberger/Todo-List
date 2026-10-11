@@ -33,6 +33,9 @@ but the tap is the point of setting the key.
 
 ## Setup
 
+Step 3 (the dry run) works on its own. Steps 1 and 2 are only needed to
+actually send.
+
 ### 1. On Vercel, once
 
 Both of these go in **Settings → Environment Variables**, ticked for
@@ -54,11 +57,15 @@ chmod 600 config.sh
 
 `config.sh` is gitignored. The secret does not go in the repo.
 
-### 3. Dry run first
+### 3. Dry run first — needs none of step 1 or 2
 
 ```sh
 ./sync-reminders.sh --dry-run
 ```
+
+A dry run reads your reminders and prints them. It posts nothing, so it
+needs no `config.sh`, no secret, and nothing set on Vercel. Run this first,
+before any of the setup above, to see what it would pick up.
 
 **The first run will prompt for permission** to control Reminders. Accept it.
 If you miss the prompt, the script tells you what happened rather than quietly
@@ -124,6 +131,7 @@ Logs: `/tmp/odyssey-reminders-sync.out` and `.err`.
 | `503 Inbox is not configured` | `INBOX_SECRET` is not set on Vercel, or it was set and not redeployed. |
 | `401 Bad secret` | `config.sh` and Vercel do not match. |
 | `Could not read Reminders` | Automation permission not granted. See step 3. |
+| `No config.sh` on a real send | Expected. Dry runs work without it; sending does not. |
 | Everything in `needsReview` | Expected with no `ANTHROPIC_API_KEY`. |
 
 ## Not tested on a real Mac
