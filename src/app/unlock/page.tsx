@@ -11,12 +11,12 @@ export default async function UnlockPage({
 }) {
   // With no passcode set there is nothing to unlock, and this screen would
   // be a dead end.
-  if (!passcodeIsConfigured()) redirect("/today");
+  if (!passcodeIsConfigured()) redirect("/");
 
   const { next } = await searchParams;
 
   // Only ever a path on this app. Anything else is someone else's redirect.
-  const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/today";
+  const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
 
   return <UnlockForm next={safeNext} />;
 }

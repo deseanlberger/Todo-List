@@ -3,7 +3,7 @@ import { repository } from "@/lib/data";
 import { hasEnv } from "@/lib/env";
 import { addDays, isoDate } from "@/lib/domain/time";
 import { CALENDAR_TIME_ZONE } from "@/lib/calendar";
-import { buildIcs, type IcsBlock } from "@/lib/ics/build";
+import { buildIcs } from "@/lib/ics/build";
 
 export const dynamic = "force-dynamic";
 
@@ -44,23 +44,18 @@ export async function GET(
   const repo = repository();
   const today = isoDate(new Date(), CALENDAR_TIME_ZONE);
 
-  const [blocks, tasks] = await Promise.all([
-    repo.listBlocksBetween(
-      new Date(`${addDays(today, -DAYS_BACK)}T00:00:00Z`).toISOString(),
-      new Date(`${addDays(today, DAYS_AHEAD)}T00:00:00Z`).toISOString(),
-    ),
-    repo.listTasks(),
-  ]);
+  const from = `${addDays(today, -DAYS_BACK)}T00:00:00Z`;
+  const to = `${addDays(today, DAYS_AHEAD)}T00:00:00Z`;
 
-  const byId = new Map(tasks.map((task) => [task.id, task]));
-  const entries: IcsBlock[] = blocks.map((block) => ({
-    block,
-    task: block.taskId ? (byId.get(block.taskId) ?? null) : null,
-  }));
+  // Everything with a due date inside the window. The window exists so the
+  // phone is not handed years of history on every refresh.
+  const due = (await repo.listTasks()).filter(
+    (task) => task.dueDate && task.dueDate >= from && task.dueDate <= to,
+  );
 
   const minutes = Number(process.env.CALENDAR_ALARM_MINUTES ?? "10");
 
-  const body = buildIcs(entries, {
+  const body = buildIcs(due, {
     alarmMinutes: Number.isFinite(minutes) ? minutes : 10,
     name: "Odyssey Scheduler",
     host: "odyssey-scheduler",

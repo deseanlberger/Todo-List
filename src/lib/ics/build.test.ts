@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { ScheduledBlock, Task } from "@/lib/domain/types";
-import { buildIcs, type IcsBlock } from "./build";
+import type { Task } from "@/lib/domain/types";
+import { buildIcs } from "./build";
 
 /**
  * A malformed feed does not degrade, it disappears: iOS rejects the whole
@@ -9,22 +9,6 @@ import { buildIcs, type IcsBlock } from "./build";
  */
 
 const OPTIONS = { alarmMinutes: 10, name: "Scheduler", host: "example.app" };
-
-function block(over: Partial<ScheduledBlock> = {}): ScheduledBlock {
-  return {
-    id: "block-1",
-    userId: "u",
-    taskId: "task-1",
-    startTime: "2026-10-13T16:00:00.000Z",
-    endTime: "2026-10-13T16:45:00.000Z",
-    isResetGap: false,
-    isDelegation: false,
-    gcalEventId: null,
-    weekOf: "2026-10-12",
-    createdAt: "2026-10-11T12:00:00.000Z",
-    ...over,
-  };
-}
 
 function task(over: Partial<Task> = {}): Task {
   return {
@@ -36,11 +20,11 @@ function task(over: Partial<Task> = {}): Task {
     location: "home",
     estimatedBlocks: 2,
     actualBlocks: null,
-    dueDate: null,
+    dueDate: "2026-10-13T16:00:00.000Z",
     financialImpact: 3,
     assignee: null,
     handedOffAt: null,
-    status: "scheduled",
+    status: "backlog",
     isRecurring: false,
     recurrenceRule: null,
     reminderLeadDays: 1,
@@ -54,8 +38,7 @@ function task(over: Partial<Task> = {}): Task {
   };
 }
 
-const one = (entries: IcsBlock[] = [{ block: block(), task: task() }]) =>
-  buildIcs(entries, OPTIONS);
+const one = (over: Partial<Task> = {}) => buildIcs([task(over)], OPTIONS);
 
 describe("the calendar feed", () => {
   it("is a well formed calendar", () => {
@@ -66,50 +49,55 @@ describe("the calendar feed", () => {
   });
 
   it("uses CRLF everywhere, which Apple is strict about", () => {
-    const ics = one();
-    // No bare newline anywhere.
-    expect(/[^\r]\n/.test(ics)).toBe(false);
+    expect(/[^\r]\n/.test(one())).toBe(false);
   });
 
-  it("carries the task title and times", () => {
+  it("carries the title and the due time", () => {
     const ics = one();
     expect(ics).toContain("SUMMARY:Write SMHS volleyball block 3");
     expect(ics).toContain("DTSTART:20261013T160000Z");
-    expect(ics).toContain("DTEND:20261013T164500Z");
+    // A half-hour marker, not a plan for how long the work takes.
+    expect(ics).toContain("DTEND:20261013T163000Z");
   });
 
-  it("puts an alarm on real work", () => {
+  it("leaves out a task with no due date rather than inventing a day for it", () => {
+    expect(buildIcs([task({ dueDate: null })], OPTIONS)).not.toContain("BEGIN:VEVENT");
+  });
+
+  it("leaves out a task whose stored date is unparseable", () => {
+    expect(buildIcs([task({ dueDate: "not a date" })], OPTIONS)).not.toContain("BEGIN:VEVENT");
+  });
+
+  it("alerts ahead of a task that is still open", () => {
     expect(one()).toContain("TRIGGER:-PT10M");
   });
 
   it("fires on the dot when asked for zero", () => {
-    const ics = buildIcs([{ block: block(), task: task() }], { ...OPTIONS, alarmMinutes: 0 });
-    expect(ics).toContain("TRIGGER:PT0S");
+    expect(buildIcs([task()], { ...OPTIONS, alarmMinutes: 0 })).toContain("TRIGGER:PT0S");
   });
 
-  it("does not buzz the phone for a reset gap", () => {
-    // A reset belongs on the calendar so the day reads honestly, but an
-    // alert for it would train him to ignore the ones that matter.
-    const ics = buildIcs(
-      [{ block: block({ isResetGap: true, taskId: null }), task: null }],
-      OPTIONS,
-    );
-    expect(ics).toContain("SUMMARY:Reset");
+  it("does not alert about work already ticked off", () => {
+    // It still belongs on the calendar as history, but buzzing about
+    // something finished is how an alert stops being read.
+    const ics = one({ status: "done" });
+    expect(ics).toContain("BEGIN:VEVENT");
     expect(ics).not.toContain("BEGIN:VALARM");
   });
 
-  it("keeps a stable UID per block so a refresh updates rather than duplicates", () => {
-    expect(one()).toContain("UID:block-1@example.app");
+  it("names the list it came from, so the alert has context", () => {
+    expect(one()).toContain("DESCRIPTION:Deep Focus");
+    expect(one({ needsCategory: true })).toContain("DESCRIPTION:Needs a home");
+  });
+
+  it("keeps a stable UID per task so a refresh updates rather than duplicates", () => {
+    expect(one()).toContain("UID:task-1@example.app");
   });
 
   it("escapes the characters that would otherwise end a property early", () => {
-    const ics = one([
-      {
-        block: block(),
-        task: task({ title: "Call Annie; then Jake, re: pricing", notes: "line one\nline two" }),
-      },
-    ]);
-
+    const ics = one({
+      title: "Call Annie; then Jake, re: pricing",
+      notes: "line one\nline two",
+    });
     expect(ics).toContain("SUMMARY:Call Annie\; then Jake\\, re: pricing");
     // A real newline inside a value would corrupt everything after it.
     expect(ics).toContain("line one\\nline two");
@@ -117,33 +105,17 @@ describe("the calendar feed", () => {
 
   it("folds a long line without splitting a character in half", () => {
     const long = `Review ${"the force plate numbers ".repeat(8)}with D'Lainey 🏋️`;
-    const ics = one([{ block: block(), task: task({ title: long }) }]);
+    const ics = one({ title: long });
 
     for (const line of ics.split("\r\n")) {
       expect(Buffer.from(line, "utf8").length).toBeLessThanOrEqual(75);
     }
-    // Unfolding (drop CRLF + one leading space) must give the title back
-    // intact, emoji included.
     expect(ics.replace(/\r\n /g, "")).toContain(`SUMMARY:${long.replace(/,/g, "\\,")}`);
   });
 
-  it("survives an empty week", () => {
+  it("survives an empty list", () => {
     const ics = buildIcs([], OPTIONS);
     expect(ics).toContain("BEGIN:VCALENDAR");
     expect(ics).not.toContain("BEGIN:VEVENT");
-  });
-
-  it("names a delegation and a block with no task rather than printing nothing", () => {
-    const d = buildIcs([{ block: block({ isDelegation: true, taskId: null }), task: null }], OPTIONS);
-    expect(d).toContain("SUMMARY:Hand off");
-
-    const orphan = buildIcs([{ block: block(), task: null }], OPTIONS);
-    expect(orphan).toContain("SUMMARY:Scheduled block");
-  });
-
-  it("tells the phone where the work happens", () => {
-    expect(one([{ block: block(), task: task({ location: "gym" }) }])).toContain(
-      "LOCATION:The gym",
-    );
   });
 });

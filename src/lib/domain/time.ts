@@ -299,3 +299,31 @@ export function pad(value: number): string {
 export function dayIndexInWeek(weekStart: string, isoDay: string): number {
   return daysBetween(weekStart, isoDay);
 }
+
+/**
+ * A calendar day plus minutes-past-midnight, back to a real instant.
+ *
+ * Lived in the scheduler until the scheduler was deleted. It is not
+ * scheduling logic — it is the inverse of `minutesOfDay`, and recurrence and
+ * the calendar adapter both need it to turn "the 31st at 09:00 local" into
+ * something storable.
+ */
+export function minutesToInstant(
+  isoDay: string,
+  minutes: number,
+  timeZone: string = DEFAULT_TIME_ZONE,
+): Date {
+  // Minutes past midnight can exceed a day only through a bug upstream, but
+  // roll the date rather than producing a 25:00 wall-clock time.
+  const dayOffset = Math.floor(minutes / 1440);
+  const withinDay = minutes - dayOffset * 1440;
+  const { year, month, day } = parseIsoDate(dayOffset ? addDays(isoDay, dayOffset) : isoDay);
+  return zonedTimeToUtc(
+    year,
+    month,
+    day,
+    Math.floor(withinDay / 60),
+    withinDay % 60,
+    timeZone,
+  );
+}

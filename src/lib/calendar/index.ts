@@ -1,9 +1,14 @@
 import "server-only";
 import { google } from "googleapis";
-import { DEFAULT_TIME_ZONE, addDays, isoDate, weekOf } from "@/lib/domain/time";
+import {
+  DEFAULT_TIME_ZONE,
+  addDays,
+  isoDate,
+  minutesToInstant,
+  weekOf,
+} from "@/lib/domain/time";
 import { env, hasEnv } from "@/lib/env";
 import type { CalendarEvent } from "@/lib/domain/types";
-import { minutesToInstant } from "@/lib/scheduler";
 
 export interface CalendarWrite {
   summary: string;

@@ -1,5 +1,5 @@
 import { ScreenSkeleton } from "@/components/skeleton";
 
 export default function Loading() {
-  return <ScreenSkeleton title="Today" rows={7} />;
+  return <ScreenSkeleton title="Tasks" rows={7} />;
 }

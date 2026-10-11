@@ -25,7 +25,6 @@ import type {
   NewCommitment,
   NewTask,
   NewWindow,
-  PendingSchedule,
   Repository,
   TaskPatch,
 } from "./repository";
@@ -322,75 +321,6 @@ export class SupabaseRepository implements Repository {
       .delete()
       .eq("user_id", this.userId)
       .eq("task_id", taskId);
-    if (error) throw new Error(error.message);
-  }
-
-  async savePendingSchedule(
-    pending: Omit<PendingSchedule, "id" | "createdAt">,
-  ): Promise<PendingSchedule> {
-    // Supersede any live proposal for the same week.
-    await this.db
-      .from("pending_schedules")
-      .update({ discarded_at: new Date().toISOString() })
-      .eq("user_id", this.userId)
-      .eq("week_of", pending.weekOf)
-      .is("approved_at", null)
-      .is("discarded_at", null);
-
-    const row = unwrap(
-      await this.db
-        .from("pending_schedules")
-        .insert({
-          user_id: this.userId,
-          week_of: pending.weekOf,
-          payload: { diff: pending.diff, blocks: pending.blocks },
-        })
-        .select()
-        .single(),
-    );
-
-    return {
-      id: row.id,
-      weekOf: row.week_of,
-      diff: row.payload.diff,
-      blocks: row.payload.blocks,
-      createdAt: row.created_at,
-    };
-  }
-
-  async getPendingSchedule(weekOf: string): Promise<PendingSchedule | null> {
-    const { data, error } = await this.db
-      .from("pending_schedules")
-      .select("*")
-      .eq("user_id", this.userId)
-      .eq("week_of", weekOf)
-      .is("approved_at", null)
-      .is("discarded_at", null)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!data) return null;
-
-    return {
-      id: data.id,
-      weekOf: data.week_of,
-      diff: data.payload.diff,
-      blocks: data.payload.blocks,
-      createdAt: data.created_at,
-    };
-  }
-
-  async resolvePendingSchedule(
-    id: string,
-    outcome: "approved" | "discarded",
-  ): Promise<void> {
-    const column = outcome === "approved" ? "approved_at" : "discarded_at";
-    const { error } = await this.db
-      .from("pending_schedules")
-      .update({ [column]: new Date().toISOString() })
-      .eq("user_id", this.userId)
-      .eq("id", id);
     if (error) throw new Error(error.message);
   }
 
