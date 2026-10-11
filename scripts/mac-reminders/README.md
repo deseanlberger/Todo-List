@@ -104,24 +104,28 @@ it work, and prints the result.
 Do not install the plist by hand. It carries an absolute path to the script
 and a plist cannot expand `$HOME`, so there is a line to substitute — and
 `launchctl` does **not** check whether that path exists. It will happily
-load a job pointed at nothing and then fail silently every hour. That
+load a job pointed at nothing and then fail silently on every run. That
 already happened once. `install.sh` substitutes the path and refuses to
 load a job whose script is not actually there.
 
-Runs **every hour at five past**.
+Runs **twice an hour, at :05 and :35**.
 
 Unlike cron, launchd defers a run it missed rather than skipping it, and
 coalesces several missed runs into one, so a Mac asleep overnight does a
-single catch-up on wake rather than eight.
+single catch-up on wake rather than sixteen.
 
-Hourly is cheap on purpose. The server drops reminders it has already
+Twice an hour is cheap on purpose. The server drops reminders it has already
 imported *before* it sorts anything, so a run that finds nothing new makes
 no model call at all. It reads your lists, posts them, and is told they are
-all duplicates. About twelve seconds of the Mac doing nothing visible.
+all duplicates. About twelve seconds of the Mac doing nothing visible, which
+is the shape of almost every run.
 
-To change the rate, edit `StartCalendarInterval` in the plist, then
-`launchctl unload` and `launchctl load` it again. Minute alone means every
-hour; add `Hour` to pin it to one time a day.
+To change the rate, edit `StartCalendarInterval` in the plist and run
+`./install.sh` again. It is an array of `{Minute: N}` entries: one entry is
+hourly at that minute, two half an hour apart is every thirty minutes, four
+fifteen apart is every quarter hour. Adding `Hour` to an entry pins it to
+one time a day. Avoid `StartInterval`, which takes seconds but counts from
+whenever the job was last loaded, so the run times drift.
 
 To stop it:
 
