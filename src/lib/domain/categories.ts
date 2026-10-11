@@ -26,6 +26,22 @@ export interface CategoryMeta {
  * Fixed display order for the CATEGORY sort on All Tasks, and the tie-break
  * order for the scheduler.
  */
+/**
+ * What each bucket is called on screen.
+ *
+ * These are the names of Desean's own Reminders lists, not this app's
+ * vocabulary. "Deep Admin" is what he typed on his phone; "HIGH PRIORITY
+ * ADMIN" is a label this codebase invented, and a header shouting a phrase
+ * he never uses makes the list feel like someone else's software.
+ */
+export const LIST_LABELS: Record<TaskCategory, string> = {
+  deep_focus: "Deep Focus",
+  high_priority_admin: "Deep Admin",
+  low_priority_admin: "Multitasking Admin",
+  personal: "Personal",
+  delegate: "Delegate",
+};
+
 export const CATEGORY_ORDER: TaskCategory[] = [
   "deep_focus",
   "high_priority_admin",

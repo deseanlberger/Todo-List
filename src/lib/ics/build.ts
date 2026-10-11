@@ -1,5 +1,5 @@
-import { CATEGORIES } from "@/lib/domain/categories";
-import type { ScheduledBlock, Task } from "@/lib/domain/types";
+import { LIST_LABELS } from "@/lib/domain/categories";
+import type { Task } from "@/lib/domain/types";
 
 /**
  * Building an iCalendar feed of the week's scheduled work.
@@ -15,12 +15,15 @@ import type { ScheduledBlock, Task } from "@/lib/domain/types";
  * This produces RFC 5545 text. It is written by hand rather than with a
  * library because the subset needed is small and every line of it is
  * either required by the spec or doing something specific for Apple.
+ *
+ * It used to publish scheduled blocks. The scheduler is gone, so it
+ * publishes what a task list actually has: things with a due date. A task
+ * with no date is not a calendar entry and is left out rather than dumped
+ * on an arbitrary day.
  */
 
-export interface IcsBlock {
-  block: ScheduledBlock;
-  task: Task | null;
-}
+/** How long a due task occupies on the calendar. It is a marker, not a plan. */
+const EVENT_MINUTES = 30;
 
 export interface IcsOptions {
   /** Minutes before the start to fire the alert. Zero means on the dot. */
@@ -31,7 +34,7 @@ export interface IcsOptions {
   host: string;
 }
 
-export function buildIcs(entries: IcsBlock[], options: IcsOptions): string {
+export function buildIcs(tasks: Task[], options: IcsOptions): string {
   const lines: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -47,8 +50,10 @@ export function buildIcs(entries: IcsBlock[], options: IcsOptions): string {
     "REFRESH-INTERVAL;VALUE=DURATION:PT30M",
   ];
 
-  for (const entry of entries) {
-    lines.push(...event(entry, options));
+  for (const task of tasks) {
+    // No date, no calendar entry.
+    if (!task.dueDate || Number.isNaN(Date.parse(task.dueDate))) continue;
+    lines.push(...event(task, options));
   }
 
   lines.push("END:VCALENDAR");
@@ -57,31 +62,32 @@ export function buildIcs(entries: IcsBlock[], options: IcsOptions): string {
   return lines.flatMap(fold).join("\r\n") + "\r\n";
 }
 
-function event({ block, task }: IcsBlock, options: IcsOptions): string[] {
-  const summary = title(block, task);
+function event(task: Task, options: IcsOptions): string[] {
+  const start = new Date(task.dueDate!);
+  const end = new Date(start.getTime() + EVENT_MINUTES * 60_000);
+
   const lines = [
     "BEGIN:VEVENT",
-    // Stable per block, so a refresh updates an event rather than adding a
+    // Stable per task, so a refresh updates the entry rather than adding a
     // duplicate alongside it.
-    `UID:${block.id}@${options.host}`,
-    `DTSTAMP:${stamp(block.createdAt)}`,
-    `DTSTART:${stamp(block.startTime)}`,
-    `DTEND:${stamp(block.endTime)}`,
-    `SUMMARY:${escape(summary)}`,
+    `UID:${task.id}@${options.host}`,
+    `DTSTAMP:${stamp(task.createdAt)}`,
+    `DTSTART:${stamp(start.toISOString())}`,
+    `DTEND:${stamp(end.toISOString())}`,
+    `SUMMARY:${escape(task.title)}`,
   ];
 
-  const detail = description(block, task);
+  const detail = description(task);
   if (detail) lines.push(`DESCRIPTION:${escape(detail)}`);
-  if (task?.location) lines.push(`LOCATION:${escape(task.location === "gym" ? "The gym" : "Home")}`);
 
-  // A reset gap is breathing room between blocks, not work. It belongs on
-  // the calendar so the day reads honestly, but buzzing a phone for it
-  // would train him to ignore the alerts that matter.
-  if (!block.isResetGap) {
+  // Done work still has a due date. It belongs in the history the calendar
+  // shows, but alerting about something already ticked off is noise, and
+  // noise is how an alert stops being read.
+  if (task.status !== "done") {
     lines.push(
       "BEGIN:VALARM",
       "ACTION:DISPLAY",
-      `DESCRIPTION:${escape(summary)}`,
+      `DESCRIPTION:${escape(task.title)}`,
       `TRIGGER:${trigger(options.alarmMinutes)}`,
       "END:VALARM",
     );
@@ -91,16 +97,8 @@ function event({ block, task }: IcsBlock, options: IcsOptions): string[] {
   return lines;
 }
 
-function title(block: ScheduledBlock, task: Task | null): string {
-  if (block.isResetGap) return "Reset";
-  if (block.isDelegation) return "Hand off";
-  if (!task) return "Scheduled block";
-  return task.title;
-}
-
-function description(block: ScheduledBlock, task: Task | null): string | null {
-  if (!task) return null;
-  const parts = [CATEGORIES[task.category].label];
+function description(task: Task): string | null {
+  const parts = [task.needsCategory ? "Needs a home" : LIST_LABELS[task.category]];
   if (task.notes) parts.push(task.notes);
   return parts.join("\n\n");
 }

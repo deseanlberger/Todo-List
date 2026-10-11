@@ -12,7 +12,6 @@ import type {
   NewCommitment,
   NewTask,
   NewWindow,
-  PendingSchedule,
   Repository,
   TaskPatch,
 } from "./repository";
@@ -31,7 +30,6 @@ interface DemoState {
   commitments: Commitment[];
   settings: SchedulerSettings;
   blocks: ScheduledBlock[];
-  pending: (PendingSchedule & { resolvedAt: string | null })[];
   estimations: (EstimationSample & { taskId: string })[];
 }
 
@@ -60,7 +58,6 @@ function state(): DemoState {
       })),
       settings: { ...SEED_SETTINGS },
       blocks: [],
-      pending: [],
       estimations: [],
     };
   }
@@ -210,36 +207,6 @@ export class DemoRepository implements Repository {
     state().blocks = state().blocks.filter((block) => block.taskId !== taskId);
   }
 
-  async savePendingSchedule(
-    pending: Omit<PendingSchedule, "id" | "createdAt">,
-  ): Promise<PendingSchedule> {
-    const store = state();
-    // Only one live proposal per week; a new run supersedes the old one.
-    store.pending = store.pending.filter(
-      (p) => p.weekOf !== pending.weekOf || p.resolvedAt !== null,
-    );
-    const created = {
-      ...pending,
-      id: randomUUID(),
-      createdAt: new Date().toISOString(),
-      resolvedAt: null,
-    };
-    store.pending.push(created);
-    return clone(stripResolved(created));
-  }
-
-  async getPendingSchedule(weekOf: string): Promise<PendingSchedule | null> {
-    const found = state().pending.find(
-      (p) => p.weekOf === weekOf && p.resolvedAt === null,
-    );
-    return found ? clone(stripResolved(found)) : null;
-  }
-
-  async resolvePendingSchedule(id: string): Promise<void> {
-    const found = state().pending.find((p) => p.id === id);
-    if (found) found.resolvedAt = new Date().toISOString();
-  }
-
   async recordEstimation(sample: EstimationSample & { taskId: string }): Promise<void> {
     state().estimations.unshift(sample);
   }
@@ -249,9 +216,3 @@ export class DemoRepository implements Repository {
   }
 }
 
-function stripResolved(
-  value: PendingSchedule & { resolvedAt: string | null },
-): PendingSchedule {
-  const { ...rest } = value;
-  return rest;
-}

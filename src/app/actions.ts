@@ -1,42 +1,20 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import {
-  repository,
-  type NewCommitment,
-  type NewWindow,
-  type TaskPatch,
-} from "@/lib/data";
-import { claudeIsConfigured, parseCapture } from "@/lib/capture/parse";
 import { CALENDAR_TIME_ZONE } from "@/lib/calendar";
-import { categoryMeta, defaultBlocks, taskMinutes } from "@/lib/domain/categories";
+import { claudeIsConfigured, parseCapture } from "@/lib/capture/parse";
+import { repository } from "@/lib/data";
+import { categoryMeta, defaultBlocks } from "@/lib/domain/categories";
 import { nextOccurrence } from "@/lib/domain/recurrence";
-import { isoDate, minutesOfDay, weekOf as weekOfDate } from "@/lib/domain/time";
-import { loadDaySlots, type DaySlot } from "@/lib/day-slots";
-import { minutesToInstant } from "@/lib/scheduler";
-import type { SortMode, Task, TaskCategory, TaskLocation } from "@/lib/domain/types";
-import {
-  approveWeek,
-  discardWeek,
-  proposeWeek,
-  resolveTargetWeek,
-} from "@/lib/schedule-run";
+import { isoDate, minutesOfDay, minutesToInstant } from "@/lib/domain/time";
+import type { Task, TaskCategory, TaskLocation } from "@/lib/domain/types";
+import type { TaskPatch } from "@/lib/data";
 
+/** There is one list now, so there is one path to revalidate. */
 function refresh(...paths: string[]) {
-  for (const path of ["/today", "/week", "/tasks", "/delegate", ...paths]) {
+  for (const path of ["/", ...paths]) {
     revalidatePath(path);
   }
-}
-
-/* ------------------------------------------------------------------ theme */
-
-export async function saveTheme(theme: "dark" | "light") {
-  await repository().updateSettings({ theme });
-}
-
-export async function saveSortMode(sortMode: SortMode) {
-  // Persisted deliberately: the sort is a habit, not a session choice.
-  await repository().updateSettings({ defaultSort: sortMode });
 }
 
 /* ------------------------------------------------------------------ tasks */
@@ -188,54 +166,6 @@ export async function assignTask(taskId: string, assignee: string) {
 
 /* -------------------------------------------------------------- close-out */
 
-/** §13. Three outcomes, no partial credit. */
-export async function closeOutBlock(input: {
-  taskId: string;
-  outcome: "completed" | "unfinished" | "swap";
-  /** Blocks of extra time, 1-4, for the unfinished case. */
-  moreBlocks?: number;
-  /** The task taking over the block, for the swap case. */
-  swapTaskId?: string;
-}) {
-  const repo = repository();
-  const task = await repo.getTask(input.taskId);
-  if (!task) throw new Error(`No task ${input.taskId}`);
-
-  if (input.outcome === "completed") {
-    const actual = task.actualBlocks ?? task.estimatedBlocks;
-    await repo.updateTask(task.id, {
-      status: "done",
-      completedAt: new Date().toISOString(),
-      actualBlocks: actual,
-    });
-    await rollForward(task);
-    // Feeds the estimator prompt (§16).
-    await repo.recordEstimation({
-      taskId: task.id,
-      title: task.title,
-      category: task.category,
-      estimatedBlocks: task.estimatedBlocks,
-      actualBlocks: actual,
-      completedAt: new Date().toISOString(),
-    });
-  }
-
-  if (input.outcome === "unfinished") {
-    const more = Math.min(4, Math.max(1, input.moreBlocks ?? 1));
-    // Back to the backlog at the *reduced* estimate: what is left, not what
-    // it originally cost.
-    await repo.updateTask(task.id, { status: "backlog", estimatedBlocks: more });
-  }
-
-  if (input.outcome === "swap") {
-    if (!input.swapTaskId) throw new Error("A swap needs a task to swap in.");
-    // The displaced task returns to the backlog untouched.
-    await repo.updateTask(task.id, { status: "backlog" });
-    await repo.updateTask(input.swapTaskId, { status: "scheduled" });
-  }
-
-  refresh();
-}
 
 /**
  * When a repeating task is finished, put the next one in the backlog.
@@ -304,63 +234,8 @@ export async function setTaskDone(taskId: string, done: boolean) {
 
 /* --------------------------------------------------- placing by hand (§11) */
 
-/** Where a task could go on a given day. Feeds the placement sheet. */
-export async function slotsForDate(date: string): Promise<DaySlot[]> {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Bad date");
-  return loadDaySlots(date);
-}
 
-/**
- * Put a task on the calendar at a time the user picked.
- *
- * Schedule my week proposes; this overrides. It writes one block and leaves
- * the rest of the week alone, and it does NOT refuse an overlap — §11 says
- * the app warns rather than blocks, so a clash is flagged on the screen and
- * the user decides. The one thing it does enforce is that a task holds a
- * single slot: placing it again moves it rather than cloning it.
- */
-export async function placeTaskAt(input: {
-  taskId: string;
-  /** `YYYY-MM-DD` local. */
-  date: string;
-  /** Minutes from local midnight. */
-  start: number;
-}) {
-  const repo = repository();
-  const task = await repo.getTask(input.taskId);
-  if (!task) throw new Error(`No task ${input.taskId}`);
 
-  const minutes = taskMinutes(task);
-  if (minutes === null) {
-    throw new Error("A delegate task is handed off, not scheduled (§15).");
-  }
-  const end = input.start + minutes;
-
-  await repo.deleteBlocksForTask(task.id);
-  await repo.addBlock({
-    taskId: task.id,
-    startTime: minutesToInstant(input.date, input.start, CALENDAR_TIME_ZONE).toISOString(),
-    endTime: minutesToInstant(input.date, end, CALENDAR_TIME_ZONE).toISOString(),
-    isResetGap: false,
-    isDelegation: false,
-    gcalEventId: null,
-    weekOf: weekOfDate(
-      minutesToInstant(input.date, 12 * 60, CALENDAR_TIME_ZONE),
-      CALENDAR_TIME_ZONE,
-    ),
-  });
-
-  await repo.updateTask(task.id, { status: "scheduled" });
-  refresh("/month");
-}
-
-/** Take it back off the calendar. The task returns to the backlog. */
-export async function unplaceTask(taskId: string) {
-  const repo = repository();
-  await repo.deleteBlocksForTask(taskId);
-  await repo.updateTask(taskId, { status: "backlog" });
-  refresh("/month");
-}
 
 /**
  * Sort an imported reminder into a real category.
@@ -386,50 +261,13 @@ export async function categoriseTask(
 
 /* ------------------------------------------------------------- scheduling */
 
-export async function scheduleMyWeek(weekStart?: string) {
-  const week = weekStart ?? (await resolveTargetWeek());
-  const pending = await proposeWeek(week);
-  refresh("/review");
-  return { weekStart: week, changes: pending.diff.totalChanges };
-}
 
-export async function approveSchedule(weekStart: string) {
-  const result = await approveWeek(weekStart);
-  refresh("/review");
-  return result;
-}
 
-export async function discardSchedule(weekStart: string) {
-  await discardWeek(weekStart);
-  refresh("/review");
-}
 
 /* ---------------------------------------------------------- week template */
 
-export async function saveWeekTemplate(input: {
-  windows: NewWindow[];
-  deepFocusCap: number;
-  resetMinutes: 10 | 15;
-  weekendUncapped: boolean;
-}) {
-  const repo = repository();
-  await repo.replaceWindows(input.windows);
-  await repo.updateSettings({
-    deepFocusCap: input.deepFocusCap,
-    resetMinutes: input.resetMinutes,
-    weekendUncapped: input.weekendUncapped,
-  });
-  // §3: template edits apply on the next run. Placed blocks are not touched.
-  refresh("/settings/week-template");
-}
 
 /* ------------------------------------------------------------ commitments */
 
-export async function saveCommitments(commitments: NewCommitment[]) {
-  await repository().replaceCommitments(commitments);
-  // Commitments are walls, so the month grid changes the moment they do.
-  // Placed blocks are left alone; they move on the next Schedule my week.
-  refresh("/settings/commitments", "/month");
-}
 
 export type { Task };

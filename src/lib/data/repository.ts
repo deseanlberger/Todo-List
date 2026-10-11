@@ -7,7 +7,6 @@ import type {
   ScheduledBlock,
   Task,
 } from "@/lib/domain/types";
-import type { ScheduleDiff } from "@/lib/scheduler";
 
 /**
  * Both inbox fields are optional: almost every task is created already
@@ -31,15 +30,6 @@ export type NewWindow = Omit<AvailabilityWindow, "id" | "userId"> & {
 export type NewCommitment = Omit<Commitment, "id" | "userId"> & {
   id?: string;
 };
-
-export interface PendingSchedule {
-  id: string;
-  weekOf: string;
-  diff: ScheduleDiff;
-  /** Everything needed to write the week, held until the diff is approved. */
-  blocks: Omit<ScheduledBlock, "id" | "userId" | "createdAt">[];
-  createdAt: string;
-}
 
 /**
  * Everything the app needs from storage. Two implementations: Supabase when
@@ -86,11 +76,6 @@ export interface Repository {
   /** Every block belonging to a task, wherever it sits. */
   deleteBlocksForTask(taskId: string): Promise<void>;
 
-  savePendingSchedule(
-    pending: Omit<PendingSchedule, "id" | "createdAt">,
-  ): Promise<PendingSchedule>;
-  getPendingSchedule(weekOf: string): Promise<PendingSchedule | null>;
-  resolvePendingSchedule(id: string, outcome: "approved" | "discarded"): Promise<void>;
 
   recordEstimation(sample: EstimationSample & { taskId: string }): Promise<void>;
   listEstimationHistory(limit: number): Promise<EstimationSample[]>;

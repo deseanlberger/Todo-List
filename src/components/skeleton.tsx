@@ -1,4 +1,4 @@
-import { Content, Header, TabBar } from "@/components/chrome";
+import { Content, Header } from "@/components/chrome";
 import { NavBar } from "@/components/nav-bar";
 
 /**
@@ -31,7 +31,6 @@ export function ScreenSkeleton({
       <Content>
         <SkeletonGroup rows={rows} />
       </Content>
-      <TabBar />
     </>
   );
 }
@@ -44,7 +43,6 @@ export function PushedSkeleton({ title, rows = 5 }: { title: string; rows?: numb
       <Content className="pt-4">
         <SkeletonGroup rows={rows} />
       </Content>
-      <TabBar />
     </>
   );
 }

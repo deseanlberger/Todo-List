@@ -5,13 +5,10 @@ import { hasEnv } from "@/lib/env";
 import {
   MONTH_LABELS,
   addDays,
-  formatClock,
   isoDate,
-  minutesOfDay,
   pad,
   parseIsoDate,
 } from "@/lib/domain/time";
-import { currentWeekStart } from "@/lib/schedule-run";
 import { formatReminder, sendMessage, telegramIsConfigured } from "@/lib/telegram";
 
 export const dynamic = "force-dynamic";
@@ -61,10 +58,7 @@ export async function GET(request: Request) {
   const now = new Date();
   const today = isoDate(now, CALENDAR_TIME_ZONE);
 
-  const [tasks, blocks] = await Promise.all([
-    repo.listTasks(),
-    repo.listBlocks(currentWeekStart(now)),
-  ]);
+  const tasks = await repo.listTasks();
 
   const due = tasks.filter((task) => {
     if (!task.isRecurring || task.status === "done" || !task.dueDate) return false;
@@ -73,14 +67,11 @@ export async function GET(request: Request) {
   });
 
   for (const task of due) {
-    const block = blocks.find((entry) => entry.taskId === task.id);
-    const placedAt = block
-      ? formatClock(minutesOfDay(new Date(block.startTime), CALENDAR_TIME_ZONE))
-      : null;
-
+    // No placed-at time any more: nothing is scheduled into blocks, so a
+    // reminder says what is due and when, and nothing about where it sits.
     await sendMessage(
       chatId,
-      formatReminder(task, describeDay(task.dueDate!, today), placedAt),
+      formatReminder(task, describeDay(task.dueDate!, today), null),
     );
   }
 

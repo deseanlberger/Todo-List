@@ -203,7 +203,7 @@ export function Segmented<T extends string>({
       role="radiogroup"
       aria-label={ariaLabel}
       className={`segmented flex gap-[2px] rounded-[9px] p-[2px] ${className}`}
-      style={{ background: "var(--fill)" }}
+      style={{ background: "var(--fill-2)" }}
     >
       {options.map((option) => {
         const active = option.value === value;
@@ -215,13 +215,13 @@ export function Segmented<T extends string>({
             aria-checked={active}
             onClick={() => onChange(option.value)}
             className="t-footnote flex-1 rounded-[7px] py-[6px] text-center"
+            // On black, a lighter thumb is the only thing that reads as
+            // "picked". A shadow does nothing against a black backdrop, so
+            // the gold does the work instead.
             style={{
-              fontWeight: active ? 600 : 400,
-              background: active ? "var(--card)" : "transparent",
-              color: "var(--label)",
-              boxShadow: active
-                ? "0 3px 8px rgba(0,0,0,0.12), 0 1px 1px rgba(0,0,0,0.04)"
-                : "none",
+              fontWeight: active ? 700 : 500,
+              background: active ? "rgba(255, 215, 0, 0.14)" : "transparent",
+              color: active ? "var(--gold)" : "var(--label-2)",
               transition: "background-color 150ms ease-out",
             }}
           >

@@ -1,12 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { getSettingsCached } from "@/lib/data/cached";
-import { ThemeProvider } from "@/components/theme";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Scheduler",
-  description: "Capture the work. Schedule the week.",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "Scheduler" },
+  title: "Odyssey Tasks",
+  description: "What is left to do.",
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Tasks" },
 };
 
 export const viewport: Viewport = {
@@ -14,40 +12,19 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f2f2f7" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
-  ],
+  themeColor: "#000000",
 };
 
-export default async function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  // Read the persisted appearance on the server so the first paint is already
-  // right. Never let this be what stops the app rendering: an unreachable
-  // database should cost the remembered appearance, not the whole page.
-  let theme: "dark" | "light" = "light";
-  try {
-    theme = (await getSettingsCached()).theme;
-  } catch (cause) {
-    console.error("Could not read the appearance; falling back to light:", cause);
-  }
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" data-theme={theme}>
+    // One appearance. The brand is black with a gold accent, so there is no
+    // light variant to remember and nothing to read from the database before
+    // the first paint.
+    <html lang="en">
       <body>
-        <ThemeProvider initialTheme={theme}>
-          {/*
-            A phone column under 900px. Above it the tab bar becomes a fixed
-            left sidebar, so the shell leaves room for it and lets the column
-            grow — a laptop or an iPad gets a wider app, not a phone strip.
-          */}
-          <div className="app-shell">
-            <div className="app-column">{children}</div>
-          </div>
-        </ThemeProvider>
+        <div className="app-shell">
+          <div className="app-column">{children}</div>
+        </div>
       </body>
     </html>
   );

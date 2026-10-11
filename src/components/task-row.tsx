@@ -1,19 +1,15 @@
 "use client";
 
-import { CATEGORIES } from "@/lib/domain/categories";
+import { LIST_LABELS } from "@/lib/domain/categories";
 import { formatDueShort } from "@/lib/domain/time";
 import type { Task } from "@/lib/domain/types";
 import { Check } from "lucide-react";
-import { Dot, Stars, categoryColor } from "./ui";
+import { Dot, categoryColor } from "./ui";
 
 /** `2 blocks`, or `Handoff` for a delegate item. */
 export function blockCountLabel(task: Task): string {
   if (task.category === "delegate") return "Handoff";
   return `${task.estimatedBlocks} block${task.estimatedBlocks === 1 ? "" : "s"}`;
-}
-
-function sentenceCase(value: string): string {
-  return value.charAt(0) + value.slice(1).toLowerCase();
 }
 
 /**
@@ -24,7 +20,6 @@ export function TaskRow({
   task,
   timeZone,
   urgent,
-  onRate,
   onToggleDone,
   onOpen,
   showCategory = true,
@@ -32,7 +27,6 @@ export function TaskRow({
   task: Task;
   timeZone: string;
   urgent: boolean;
-  onRate: (value: number) => void;
   onToggleDone: (done: boolean) => void;
   /** Tapping the row. Opens the placement sheet, or the sort sheet. */
   onOpen: () => void;
@@ -45,9 +39,13 @@ export function TaskRow({
   if (task.needsCategory) {
     meta.push({ text: "Needs sorting", color: "var(--orange, var(--cat-delegate))" });
   } else if (showCategory) {
-    meta.push({ text: sentenceCase(CATEGORIES[task.category].label) });
+    // His list name, not this codebase's. The header above a group says
+    // "Deep Admin"; a row loose in the Later list must say the same thing.
+    meta.push({ text: LIST_LABELS[task.category] });
   }
-  meta.push({ text: task.location === "gym" ? "Gym" : "Home" });
+  // Only the gym is worth saying. "Home" on every row is noise, because
+  // home is where almost everything happens.
+  if (task.location === "gym") meta.push({ text: "Gym" });
   if (task.dueDate) {
     meta.push({
       text: formatDueShort(task.dueDate, timeZone),
@@ -121,16 +119,6 @@ export function TaskRow({
           ))}
         </span>
       </button>
-
-      <span
-        className="shrink-0 pt-[1px]"
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-        }}
-      >
-        <Stars value={task.financialImpact} onChange={onRate} />
-      </span>
     </div>
   );
 }

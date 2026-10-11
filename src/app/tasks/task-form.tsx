@@ -17,7 +17,7 @@ import {
   Switch,
   categoryColor,
 } from "@/components/ui";
-import { CATEGORIES, CATEGORY_ORDER, categoryMeta } from "@/lib/domain/categories";
+import { CATEGORIES, CATEGORY_ORDER, defaultBlocks } from "@/lib/domain/categories";
 import {
   describeRule,
   formatRule,
@@ -26,19 +26,15 @@ import {
 } from "@/lib/domain/recurrence";
 import { WEEKDAY_SHORT } from "@/lib/domain/time";
 import { urgencyLabel } from "@/lib/domain/priority";
-import type { EstimationSample, Task, TaskCategory, TaskLocation } from "@/lib/domain/types";
-
-const MAX_BLOCKS = 4;
+import type { Task, TaskCategory, TaskLocation } from "@/lib/domain/types";
 
 export function TaskForm({
   task,
   nowIso,
-  history,
 }: {
   /** Null when creating. */
   task: Task | null;
   nowIso: string;
-  history: EstimationSample[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -49,7 +45,6 @@ export function TaskForm({
     task?.category ?? "high_priority_admin",
   );
   const [location, setLocation] = useState<TaskLocation>(task?.location ?? "home");
-  const [blocks, setBlocks] = useState(task?.estimatedBlocks ?? 1);
   const [impact, setImpact] = useState(task?.financialImpact ?? 3);
   const [due, setDue] = useState(task?.dueDate ? toLocalInput(task.dueDate) : "");
   const [recurring, setRecurring] = useState(task?.isRecurring ?? false);
@@ -58,15 +53,12 @@ export function TaskForm({
   const [weekdays, setWeekdays] = useState<number[]>(stored?.weekdays ?? []);
   const [assignee, setAssignee] = useState(task?.assignee ?? "");
 
-  const meta = categoryMeta(category);
   const urgency = task
     ? urgencyLabel(
         { ...task, dueDate: due ? new Date(due).toISOString() : null },
         new Date(nowIso),
       )
     : null;
-
-  const relevant = history.filter((sample) => sample.category === category).slice(0, 3);
 
   const save = () => {
     if (!title.trim()) return;
@@ -88,7 +80,7 @@ export function TaskForm({
         title: title.trim(),
         category,
         location,
-        estimatedBlocks: meta.schedules ? blocks : 1,
+        estimatedBlocks: defaultBlocks(category),
         financialImpact: impact,
         dueDate: dueIso,
         assignee: category === "delegate" ? assignee.trim() || null : null,
@@ -185,7 +177,6 @@ export function TaskForm({
                   onClick={() => {
                     setCategory(option);
                     setPickingCategory(false);
-                    if (!CATEGORIES[option].schedules) setBlocks(1);
                   }}
                 >
                   <Dot color={categoryColor(option)} />
@@ -210,25 +201,6 @@ export function TaskForm({
               onChange={setLocation}
             />
           </Row>
-
-          {meta.schedules ? (
-            <Row>
-              <span className="t-body flex-1">Blocks</span>
-              <span className="t-subhead tnum" style={{ color: "var(--label-2)" }}>
-                {blocks * meta.blockMinutes!} min
-              </span>
-              <Segmented
-                ariaLabel="Estimated blocks"
-                className="w-[132px]"
-                value={String(blocks)}
-                options={Array.from({ length: MAX_BLOCKS }, (_, index) => ({
-                  value: String(index + 1),
-                  label: String(index + 1),
-                }))}
-                onChange={(value) => setBlocks(Number(value))}
-              />
-            </Row>
-          ) : null}
 
           {category === "delegate" ? (
             <Row>
@@ -332,19 +304,6 @@ export function TaskForm({
 
         {task ? (
           <>
-            <Group header="Estimator">
-              <Row>
-                <span className="t-body flex-1">Recent history</span>
-                <RowValue>
-                  {relevant.length === 0
-                    ? "No completions yet"
-                    : `est ${average(relevant.map((s) => s.estimatedBlocks))} / act ${average(
-                        relevant.map((s) => s.actualBlocks),
-                      )}`}
-                </RowValue>
-              </Row>
-            </Group>
-
             <Group>
               <Row onClick={remove}>
                 <Trash2 size={19} strokeWidth={2} style={{ color: "var(--red)" }} />
@@ -360,10 +319,7 @@ export function TaskForm({
           <Button
             label="Hand this off instead"
             full
-            onClick={() => {
-              setCategory("delegate");
-              setBlocks(1);
-            }}
+            onClick={() => setCategory("delegate")}
           />
         ) : null}
       </Content>
@@ -373,12 +329,6 @@ export function TaskForm({
 
 function sentence(value: string): string {
   return value.charAt(0) + value.slice(1).toLowerCase();
-}
-
-function average(values: number[]): string {
-  if (values.length === 0) return "0";
-  const mean = values.reduce((total, value) => total + value, 0) / values.length;
-  return mean.toFixed(1).replace(/\.0$/, "");
 }
 
 /** `datetime-local` wants `YYYY-MM-DDTHH:MM` in the browser's own zone. */

@@ -7,21 +7,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * the feed with its task's title attached.
  */
 
-const repo = vi.hoisted(() => ({
-  blocks: [] as unknown[],
-  tasks: [] as unknown[],
-  rangeAskedFor: null as null | { from: string; to: string },
-}));
+const repo = vi.hoisted(() => ({ tasks: [] as unknown[] }));
 
 vi.mock("@/lib/data", () => ({
-  repository: () => ({
-    listBlocksBetween: async (from: string, to: string) => {
-      repo.rangeAskedFor = { from, to };
-      return repo.blocks;
-    },
-    listTasks: async () => repo.tasks,
-  }),
+  repository: () => ({ listTasks: async () => repo.tasks }),
 }));
+
+function task(over: Record<string, unknown> = {}) {
+  return {
+    id: "task-9",
+    title: "D'Lainey: check force plate numbers",
+    notes: null,
+    category: "deep_focus",
+    status: "backlog",
+    needsCategory: false,
+    dueDate: new Date(Date.now() + 3 * 86_400_000).toISOString(),
+    createdAt: "2026-10-11T12:00:00.000Z",
+    ...over,
+  };
+}
 
 async function get(token: string): Promise<Response> {
   const { GET } = await import("./[token]/route");
@@ -31,9 +35,7 @@ async function get(token: string): Promise<Response> {
 }
 
 beforeEach(() => {
-  repo.blocks = [];
   repo.tasks = [];
-  repo.rangeAskedFor = null;
   vi.stubEnv("CALENDAR_TOKEN", "the-secret");
   vi.resetModules();
 });
@@ -67,64 +69,31 @@ describe("the calendar feed route", () => {
     expect(response.headers.get("cache-control")).toContain("no-store");
   });
 
-  it("puts a real block in the feed with its task's title", async () => {
-    repo.blocks = [
-      {
-        id: "block-9",
-        userId: "u",
-        taskId: "task-9",
-        startTime: "2026-10-13T16:00:00.000Z",
-        endTime: "2026-10-13T16:45:00.000Z",
-        isResetGap: false,
-        isDelegation: false,
-        gcalEventId: null,
-        weekOf: "2026-10-12",
-        createdAt: "2026-10-11T12:00:00.000Z",
-      },
-    ];
-    repo.tasks = [
-      {
-        id: "task-9",
-        title: "D'Lainey: check force plate numbers",
-        category: "deep_focus",
-        location: "home",
-        notes: null,
-      },
-    ];
+  it("puts a due task in the feed with an alarm", async () => {
+    repo.tasks = [task()];
 
     const body = await (await get("the-secret")).text();
 
     expect(body).toContain("BEGIN:VEVENT");
     expect(body).toContain("SUMMARY:D'Lainey: check force plate numbers");
-    expect(body).toContain("DTSTART:20261013T160000Z");
-    expect(body).toContain("UID:block-9@odyssey-scheduler");
+    expect(body).toContain("UID:task-9@odyssey-scheduler");
     expect(body).toContain("BEGIN:VALARM");
   });
 
-  it("does not fall over on a block whose task has been deleted", async () => {
-    repo.blocks = [
-      {
-        id: "orphan",
-        userId: "u",
-        taskId: "gone",
-        startTime: "2026-10-13T16:00:00.000Z",
-        endTime: "2026-10-13T16:45:00.000Z",
-        isResetGap: false,
-        isDelegation: false,
-        gcalEventId: null,
-        weekOf: "2026-10-12",
-        createdAt: "2026-10-11T12:00:00.000Z",
-      },
-    ];
-
-    const body = await (await get("the-secret")).text();
-    expect(body).toContain("SUMMARY:Scheduled block");
+  it("leaves out a task with no due date", async () => {
+    repo.tasks = [task({ dueDate: null })];
+    expect(await (await get("the-secret")).text()).not.toContain("BEGIN:VEVENT");
   });
 
-  it("asks for a window that spans past and future", async () => {
-    await get("the-secret");
-    const { from, to } = repo.rangeAskedFor!;
-    expect(new Date(from).getTime()).toBeLessThan(Date.now());
-    expect(new Date(to).getTime()).toBeGreaterThan(Date.now());
+  it("leaves out a task due years from now", async () => {
+    // The window exists so the phone is not handed everything on every
+    // refresh.
+    repo.tasks = [task({ dueDate: "2031-01-01T10:00:00.000Z" })];
+    expect(await (await get("the-secret")).text()).not.toContain("BEGIN:VEVENT");
+  });
+
+  it("leaves out a task due long in the past", async () => {
+    repo.tasks = [task({ dueDate: "2020-01-01T10:00:00.000Z" })];
+    expect(await (await get("the-secret")).text()).not.toContain("BEGIN:VEVENT");
   });
 });

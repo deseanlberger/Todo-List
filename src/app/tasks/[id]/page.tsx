@@ -11,12 +11,9 @@ export default async function TaskDetailPage({
 }) {
   const { id } = await params;
   const repo = repository();
-  const [task, history] = await Promise.all([
-    repo.getTask(id),
-    repo.listEstimationHistory(50),
-  ]);
+  const task = await repo.getTask(id);
 
   if (!task) notFound();
 
-  return <TaskForm task={task} nowIso={new Date().toISOString()} history={history} />;
+  return <TaskForm task={task} nowIso={new Date().toISOString()} />;
 }
