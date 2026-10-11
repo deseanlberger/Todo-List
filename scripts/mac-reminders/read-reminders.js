@@ -41,6 +41,17 @@ function run() {
   for (let i = 0; i < lists.length; i++) {
     const list = lists[i];
 
+    // The list name is the single most valuable field here. Desean keeps
+    // lists called Deep Focus, Deep Admin, Multitasking Admin, Personal and
+    // Delegate — he has already categorised this work by hand, and his own
+    // filing beats anything a model can infer from a one-line title.
+    let listName = "";
+    try {
+      listName = String(list.name() || "");
+    } catch (error) {
+      listName = "";
+    }
+
     // Five bulk reads per list, not five per reminder.
     let names, ids, dues, bodies, done;
     try {
@@ -87,6 +98,7 @@ function run() {
 
       const entry = { title: title, due: due, notes: notes };
       if (id !== "") entry.id = id;
+      if (listName !== "") entry.list = listName;
       items.push(entry);
     }
   }

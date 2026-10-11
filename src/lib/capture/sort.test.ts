@@ -254,3 +254,101 @@ describe("sorting when Claude answers", () => {
     expect(sorted.get("a")?.assignee).toBeNull();
   });
 });
+
+describe("his own filing wins", () => {
+  it("takes the category straight from the list name, confidently", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    vi.stubEnv("ANTHROPIC_AUTH_TOKEN", "");
+    const { sortReminders } = await import("./sort");
+
+    const sorted = await sortReminders(
+      [
+        { id: "a", title: "Thibodo", notes: null, due: null, list: "Deep Focus" },
+        { id: "b", title: "Something vague", notes: null, due: null, list: "Delegate" },
+      ],
+      [],
+      NOW,
+    );
+
+    // "Thibodo" is unclassifiable from its text, but he filed it under Deep
+    // Focus, so there is nothing left to ask him about.
+    expect(sorted.get("a")).toMatchObject({ category: "deep_focus", confident: true });
+    expect(sorted.get("b")).toMatchObject({ category: "delegate", confident: true });
+  });
+
+  it("matches a list name through emoji, case and punctuation", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    const { sortReminders } = await import("./sort");
+
+    for (const list of ["🔵 Personal", "personal", "PERSONAL", " Personal "]) {
+      const sorted = await sortReminders(
+        [{ id: "a", title: "Dentist", notes: null, due: null, list }],
+        [],
+        NOW,
+      );
+      expect(sorted.get("a"), list).toMatchObject({ category: "personal", confident: true });
+    }
+  });
+
+  it("leaves a catch-all list to be sorted rather than claiming it", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    const { sortReminders } = await import("./sort");
+
+    // "ALL OF MY TASKS" and "Reaccuring" say nothing about what the work is.
+    for (const list of ["ALL OF MY TASKS", "Reaccuring", "Groceries", null]) {
+      const sorted = await sortReminders(
+        [{ id: "a", title: "Thibodo", notes: null, due: null, list }],
+        [],
+        NOW,
+      );
+      expect(sorted.get("a")?.confident, String(list)).toBe(false);
+    }
+  });
+
+  it("keeps a delegate task from the Delegate list to one block", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    const { sortReminders } = await import("./sort");
+
+    const sorted = await sortReminders(
+      [
+        {
+          id: "a",
+          title: "D'Lainey: check force plate numbers (test 1)",
+          notes: "CMJ line is 36.5 cm",
+          due: null,
+          list: "Delegate",
+        },
+      ],
+      [],
+      NOW,
+    );
+
+    expect(sorted.get("a")).toMatchObject({
+      category: "delegate",
+      estimatedBlocks: 1,
+      confident: true,
+    });
+  });
+});
+
+describe("estimates follow the stated category", () => {
+  it("gives a deep focus reminder deep focus's default, whatever its words say", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    const { sortReminders } = await import("./sort");
+
+    // "Thibodo" reads as admin to the keyword parser, which estimates one
+    // block. Filed under Deep Focus it is deep focus work, and deep focus
+    // blocks are longer and there are two of them by default.
+    const sorted = await sortReminders(
+      [{ id: "a", title: "Thibodo", notes: null, due: null, list: "Deep Focus" }],
+      [],
+      NOW,
+    );
+
+    expect(sorted.get("a")).toMatchObject({
+      category: "deep_focus",
+      estimatedBlocks: 2,
+      confident: true,
+    });
+  });
+});

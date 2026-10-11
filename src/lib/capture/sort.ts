@@ -38,6 +38,46 @@ export interface ReminderToSort {
   title: string;
   notes: string | null;
   due: string | null;
+  /** The Reminders.app list it came from, when the reader could read it. */
+  list?: string | null;
+}
+
+/**
+ * Reminders list name to category.
+ *
+ * This is the best signal in the whole import and it costs nothing. Desean
+ * files reminders into lists named after the work — Deep Focus, Deep Admin,
+ * Multitasking Admin, Personal, Delegate — so for anything in one of those,
+ * the category is not a guess at all. He already answered the question; the
+ * sorter just has to read the answer instead of inventing its own.
+ *
+ * A list that is not here (his "ALL OF MY TASKS" and "Reaccuring") falls
+ * through to the model, which is what the model is actually for.
+ *
+ * Keys are compared lowercased with emoji and punctuation stripped, so
+ * "🔵 Personal" matches "personal".
+ */
+export const LIST_CATEGORIES: Record<string, TaskCategory> = {
+  "deep focus": "deep_focus",
+  "deep admin": "high_priority_admin",
+  "multitasking admin": "low_priority_admin",
+  personal: "personal",
+  delegate: "delegate",
+};
+
+/** Lowercase, strip anything that is not a letter, digit or space. */
+function listKey(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** The category his own filing already states, or null when the list says nothing. */
+export function categoryFromList(list: string | null | undefined): TaskCategory | null {
+  if (!list) return null;
+  return LIST_CATEGORIES[listKey(list)] ?? null;
 }
 
 /** What we decided about it. */
@@ -96,9 +136,23 @@ export async function sortReminders(
   const sorted = new Map<string, SortedReminder>();
   if (items.length === 0) return sorted;
 
-  // No credentials: everything goes to the queue with a keyword guess.
+  // His own filing first. A reminder sitting in the Deep Focus list is deep
+  // focus because he put it there, so there is nothing to infer, nothing to
+  // confirm, and no reason to spend a model call on it.
+  const unfiled: ReminderToSort[] = [];
+  for (const item of items) {
+    const stated = categoryFromList(item.list);
+    if (stated) {
+      sorted.set(item.id, fromStatedCategory(stated, item, now));
+    } else {
+      unfiled.push(item);
+    }
+  }
+  if (unfiled.length === 0) return sorted;
+
+  // No credentials: the rest go to the queue with a keyword guess.
   if (!claudeIsConfigured()) {
-    for (const item of items) sorted.set(item.id, fallback(item, now));
+    for (const item of unfiled) sorted.set(item.id, fallback(item, now));
     return sorted;
   }
 
@@ -112,13 +166,13 @@ export async function sortReminders(
         format: zodOutputFormat(SortBatchSchema),
       },
       system: systemPrompt(history, now, timeZone),
-      messages: [{ role: "user", content: JSON.stringify({ reminders: items }) }],
+      messages: [{ role: "user", content: JSON.stringify({ reminders: unfiled }) }],
     });
 
     for (const entry of response.parsed_output?.reminders ?? []) {
       // Ignore an id we never sent: a hallucinated row must not create a
       // decision about a task that does not exist.
-      if (!items.some((item) => item.id === entry.id)) continue;
+      if (!unfiled.some((item) => item.id === entry.id)) continue;
       sorted.set(entry.id, normalise(entry));
     }
   } catch (cause) {
@@ -126,7 +180,7 @@ export async function sortReminders(
   }
 
   // Whatever the model skipped or mangled still has to arrive.
-  for (const item of items) {
+  for (const item of unfiled) {
     if (!sorted.has(item.id)) sorted.set(item.id, fallback(item, now));
   }
 
@@ -160,6 +214,34 @@ function normalise(entry: z.infer<typeof SortedSchema>): SortedReminder {
     financialImpact: clamp(entry.financialImpact, 1, 5),
     assignee: entry.category === "delegate" ? entry.assignee : null,
     confident: entry.confident,
+  };
+}
+
+/**
+ * A category he stated by filing it, so the only things left to guess are
+ * the cheap ones: how long it takes and where it happens. Confident by
+ * definition — overriding his own filing with a model's opinion would be
+ * the app arguing with him about his own work.
+ */
+function fromStatedCategory(
+  category: TaskCategory,
+  item: ReminderToSort,
+  now: Date,
+): SortedReminder {
+  const guess = fallback(item, now);
+  const meta = CATEGORIES[category];
+  return {
+    category,
+    location: category === "deep_focus" ? "home" : guess.location,
+    // The stated category's own default, not the keyword parser's. That
+    // parser estimates for whatever category IT picked, so "Thibodo" filed
+    // under Deep Focus came back as one block because the words read as
+    // admin — the list already overruled that, and the estimate has to be
+    // overruled with it.
+    estimatedBlocks: meta.schedules ? defaultBlocks(category) : 1,
+    financialImpact: guess.financialImpact,
+    assignee: category === "delegate" ? guess.assignee : null,
+    confident: true,
   };
 }
 

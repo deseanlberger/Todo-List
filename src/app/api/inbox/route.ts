@@ -61,7 +61,17 @@ export async function POST(request: Request) {
   const fresh = items.filter((item) => !existing.has(item.id));
   const skipped = items.length - fresh.length;
 
-  const sorted = await sortReminders(fresh, history, new Date());
+  const sorted = await sortReminders(
+    fresh.map((item) => ({
+      id: item.id,
+      title: item.title,
+      notes: item.notes,
+      due: item.due,
+      list: item.list,
+    })),
+    history,
+    new Date(),
+  );
 
   let imported = 0;
   let needsReview = 0;
@@ -109,6 +119,8 @@ interface InboxItem {
   title: string;
   due: string | null;
   notes: string | null;
+  /** The Reminders.app list it came from. The strongest signal we get. */
+  list: string | null;
 }
 
 /** Null when the shape is wrong, so the caller gets a 400 and not a 500. */
@@ -146,6 +158,9 @@ function parseItems(body: unknown): InboxItem[] | null {
       due,
       notes: typeof record.notes === "string" && record.notes.trim() !== ""
         ? record.notes.trim().slice(0, 2000)
+        : null,
+      list: typeof record.list === "string" && record.list.trim() !== ""
+        ? record.list.trim().slice(0, 200)
         : null,
     });
   }
