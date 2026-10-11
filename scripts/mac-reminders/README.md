@@ -100,8 +100,20 @@ cp com.odyssey.reminders-sync.plist ~/Library/LaunchAgents/
 launchctl load ~/Library/LaunchAgents/com.odyssey.reminders-sync.plist
 ```
 
-Runs at 6:05am. Unlike cron, launchd defers a run it missed rather than
-skipping it, so a sleeping Mac catches up on wake.
+Runs **every hour at five past**.
+
+Unlike cron, launchd defers a run it missed rather than skipping it, and
+coalesces several missed runs into one, so a Mac asleep overnight does a
+single catch-up on wake rather than eight.
+
+Hourly is cheap on purpose. The server drops reminders it has already
+imported *before* it sorts anything, so a run that finds nothing new makes
+no model call at all. It reads your lists, posts them, and is told they are
+all duplicates. About twelve seconds of the Mac doing nothing visible.
+
+To change the rate, edit `StartCalendarInterval` in the plist, then
+`launchctl unload` and `launchctl load` it again. Minute alone means every
+hour; add `Hour` to pin it to one time a day.
 
 To stop it:
 
