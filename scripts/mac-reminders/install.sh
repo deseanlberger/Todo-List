@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Installs the hourly reminder sync as a launchd agent.
+# Installs the half-hourly reminder sync as a launchd agent.
 #
 #   ./install.sh            install (or reinstall) and fire it once
 #   ./install.sh --remove   stop it and remove it
@@ -8,7 +8,7 @@
 # This exists because the plist has to carry an absolute path to the script
 # and a plist cannot expand $HOME. Leaving that as "edit this line yourself"
 # is a step that gets skipped, and launchctl does NOT check whether the path
-# exists — it loads a broken job happily and then fails silently every hour.
+# exists — it loads a broken job happily and then fails silently on every run.
 # That happened. So the path is filled in here, and the install verifies
 # itself rather than trusting that it worked.
 
@@ -53,7 +53,7 @@ if [ -z "$PROGRAM" ] || [ ! -x "$PROGRAM" ]; then
 fi
 
 launchctl load "$INSTALLED"
-echo "Installed. Runs every hour at :05, from $PROGRAM"
+echo "Installed. Runs at :05 and :35 every hour, from $PROGRAM"
 echo
 
 echo "Firing it once now to prove it works..."

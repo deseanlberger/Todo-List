@@ -1,23 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Pulls reminders into the scheduler every hour, at five past.
+  Pulls reminders into the scheduler every half hour, at :05 and :35.
 
   Install:
     1. Edit the path in ProgramArguments below to where the script lives.
     2. cp com.odyssey.reminders-sync.plist ~/Library/LaunchAgents/
     3. launchctl load ~/Library/LaunchAgents/com.odyssey.reminders-sync.plist
 
-  StartCalendarInterval with only Minute set means "every hour at :05".
+  StartCalendarInterval with only Minute set means "every hour at that
+  minute". Two of them, half an hour apart, is how launchd says "every
+  thirty minutes" while still landing on predictable clock times. There is
+  a StartInterval key that takes plain seconds, but it counts from whenever
+  the job was last loaded, so the run times drift and nobody can say when
+  the next one is.
 
   Unlike cron, launchd DEFERS a run it missed rather than skipping it, and
   it coalesces several missed runs into one. So a Mac asleep overnight does
   a single catch-up run on wake, not eight.
 
-  Hourly is cheap on purpose. The server drops reminders it has already
-  imported BEFORE it sorts anything, so a run that finds nothing new makes
-  no model call at all — it just reads the lists, posts them, and is told
-  they are all duplicates. Roughly twelve seconds of the Mac doing nothing
-  visible.
+  Twice an hour is cheap on purpose. The server drops reminders it has
+  already imported BEFORE it sorts anything, so a run that finds nothing new
+  makes no model call at all: it just reads the lists, posts them, and is
+  told they are all duplicates. Roughly twelve seconds of the Mac doing
+  nothing visible, which is the shape of almost every run.
 
   RunAtLoad is false so this does not fire on every login and every
   launchctl load on top of the hourly schedule.
@@ -39,10 +44,16 @@
   </array>
 
   <key>StartCalendarInterval</key>
-  <dict>
-    <key>Minute</key>
-    <integer>5</integer>
-  </dict>
+  <array>
+    <dict>
+      <key>Minute</key>
+      <integer>5</integer>
+    </dict>
+    <dict>
+      <key>Minute</key>
+      <integer>35</integer>
+    </dict>
+  </array>
 
   <key>RunAtLoad</key>
   <false/>
