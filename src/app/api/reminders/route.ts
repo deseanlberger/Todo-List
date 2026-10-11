@@ -32,12 +32,32 @@ export async function GET(request: Request) {
     }
   }
 
+  const repo = repository();
+
+  // Read the database before anything below can return early.
+  //
+  // Supabase pauses a free project after seven idle days, and this cron is
+  // the only thing in the whole system that runs on its own. The Telegram
+  // check used to sit above the first read, so with Telegram unconfigured
+  // this handler returned in milliseconds every morning and never touched
+  // Postgres. The project paused, every page then threw on its first query,
+  // and Today served its loading skeleton forever.
+  //
+  // Supabase's own wording is "a few user requests to the database each day",
+  // so this deliberately issues several cheap reads rather than one. On a week
+  // where the app is never opened, these are the only queries the database
+  // sees, and a single row read sits right on the edge of the threshold.
+  await Promise.all([repo.getSettings(), repo.listWindows(), repo.listTasks()]);
+
   const chatId = hasEnv("TELEGRAM_CHAT_ID") ? process.env.TELEGRAM_CHAT_ID : null;
   if (!telegramIsConfigured() || !chatId) {
-    return NextResponse.json({ sent: 0, reason: "Telegram is not configured" });
+    return NextResponse.json({
+      sent: 0,
+      reason: "Telegram is not configured",
+      keptDatabaseAwake: true,
+    });
   }
 
-  const repo = repository();
   const now = new Date();
   const today = isoDate(now, CALENDAR_TIME_ZONE);
 
