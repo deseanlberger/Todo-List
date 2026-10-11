@@ -64,26 +64,33 @@ export async function parseCapture(input: ParseInput): Promise<CapturedTask[]> {
   }
 }
 
-function systemPrompt(input: ParseInput): string {
-  const timeZone = input.timeZone ?? CALENDAR_TIME_ZONE ?? DEFAULT_TIME_ZONE;
-  const parts = zonedParts(input.now, timeZone);
-  const today = `${WEEKDAY_FULL[parts.weekday]}, ${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
+/** `Monday, 2026-10-12` in the given zone. */
+export function todayLine(now: Date, timeZone: string): string {
+  const parts = zonedParts(now, timeZone);
+  return `${WEEKDAY_FULL[parts.weekday]}, ${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
+}
 
-  const examples = input.history
+/** His real completions, for calibrating estimates. */
+export function historyLines(history: EstimationSample[]): string {
+  return history
     .slice(0, 50)
     .map(
       (sample) =>
         `- "${sample.title}" (${sample.category}): estimated ${sample.estimatedBlocks}, actually took ${sample.actualBlocks}`,
     )
     .join("\n");
+}
 
-  return `You turn captured messages from a strength coach into structured tasks for his scheduler.
-
-Today is ${today}. His timezone is ${timeZone}. He owns a private strength and conditioning gym and also contracts with high school and college teams.
-
-Split the message into separate tasks when it contains more than one. A single errand is one task.
-
-CATEGORIES — pick exactly one:
+/**
+ * How a task is bucketed, worded once.
+ *
+ * Voice capture and the Reminders inbox both have to make this same call, and
+ * two copies of these definitions would drift the moment one was tuned — the
+ * same words would then mean different things depending on where a task came
+ * in. Anything specific to one entry point belongs in its own prompt, not
+ * here.
+ */
+export const TAXONOMY_RULES = `CATEGORIES — pick exactly one:
 - deep_focus: writing programs, anything needing real uninterrupted thinking. 45 minutes a block.
 - high_priority_admin: business items with a deadline — payroll, invoices, contracts, a call he owes someone. 30 minutes a block.
 - low_priority_admin: gym housekeeping and nice-to-haves — ordering supplies, fixing equipment, tidying. 30 minutes a block.
@@ -105,7 +112,19 @@ FINANCIAL IMPACT, 1 to 5:
 - 2: helpful but not urgent.
 - 1: tidying, reorganising.
 
-ESTIMATED BLOCKS — guess it, never ask. Cold-start defaults are 2 blocks for deep focus and 1 for everything else. Delegate tasks are always 1.
+ESTIMATED BLOCKS — guess it, never ask. Cold-start defaults are 2 blocks for deep focus and 1 for everything else. Delegate tasks are always 1.`;
+
+function systemPrompt(input: ParseInput): string {
+  const timeZone = input.timeZone ?? CALENDAR_TIME_ZONE ?? DEFAULT_TIME_ZONE;
+  const examples = historyLines(input.history);
+
+  return `You turn captured messages from a strength coach into structured tasks for his scheduler.
+
+Today is ${todayLine(input.now, timeZone)}. His timezone is ${timeZone}. He owns a private strength and conditioning gym and also contracts with high school and college teams.
+
+Split the message into separate tasks when it contains more than one. A single errand is one task.
+
+${TAXONOMY_RULES}
 ${examples ? `\nHis actual history, use it to calibrate:\n${examples}` : ""}
 
 Write the title as he would say it, in sentence case, with no trailing period.`;
@@ -147,7 +166,41 @@ const HIGH_PRIORITY_WORDS = [
 
 const PERSONAL_WORDS = ["dentist", "doctor", "birthday", "family", "haircut", "lift"];
 
-const DELEGATE_WORDS = ["annie", "jake", "ty", "matthew", "michael", "megan", "d'lainey", "dlainey"];
+const COACHES = "annie|jake|ty|matthew|michael|megan|d'?lainey";
+
+/**
+ * Handing work TO a coach, as against doing work ABOUT one.
+ *
+ * A coach's name on its own means nothing. Desean's reminders are full of
+ * lines like "D'Lainey: check force plate numbers (test 1)", whose own
+ * notes read "Ask Claude to vald-pull her numbers" — that is his job, with
+ * her name as the subject. He confirmed it: a name prefix says who the task
+ * is about, not who it goes to. Matching on the bare name filed seven of
+ * his twelve reminders as delegated work that would never have been
+ * scheduled at all.
+ *
+ * So delegation has to be said, not implied: a verb that actually hands it
+ * over, or the coach as the subject of one.
+ */
+const HANDOFF_PATTERNS = [
+  new RegExp(String.raw`\b(?:have|ask|get|tell|remind)\s+(${COACHES})\b`, "i"),
+  new RegExp(String.raw`\bhand(?:\s+it)?(?:\s+off)?\s+to\s+(${COACHES})\b`, "i"),
+  new RegExp(String.raw`\b(?:delegate|assign)\s+(?:\w+\s+)?to\s+(${COACHES})\b`, "i"),
+  new RegExp(String.raw`\b(${COACHES})\s+(?:can|should|needs to|will|is)\b`, "i"),
+];
+
+/** A leading "Name:" is a subject tag, never a handoff. */
+const SUBJECT_TAG = new RegExp(String.raw`^\s*(?:${COACHES})\s*:`, "i");
+
+/** The coach this is being handed to, or null when nobody is. */
+function handoffTarget(text: string): string | null {
+  if (SUBJECT_TAG.test(text)) return null;
+  for (const pattern of HANDOFF_PATTERNS) {
+    const match = pattern.exec(text);
+    if (match) return match[1];
+  }
+  return null;
+}
 
 /**
  * No credentials, no problem: keyword matching gets the task into the
@@ -157,7 +210,7 @@ export function heuristicParse(input: ParseInput): CapturedTask[] {
   return splitSentences(input.text).map((sentence) => {
     const lower = sentence.toLowerCase();
 
-    const assignee = DELEGATE_WORDS.find((name) => lower.includes(name)) ?? null;
+    const assignee = handoffTarget(sentence);
     const category: TaskCategory = assignee
       ? "delegate"
       : match(lower, DEEP_FOCUS_WORDS)

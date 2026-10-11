@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sortReminders } from "@/lib/capture/sort";
 import { repository } from "@/lib/data";
 import { hasEnv } from "@/lib/env";
 
@@ -11,9 +12,13 @@ export const dynamic = "force-dynamic";
  * the server cannot poll the device. The device pushes: an iOS Shortcut
  * automation reads Reminders on a schedule and posts them here.
  *
- * Everything arrives UNCATEGORISED on purpose. Category decides block size,
- * what window a task may sit in, and how it ranks — guessing it from a
- * one-line reminder would be confidently wrong, so the app asks instead.
+ * Arrivals are sorted into categories on the way in, and anything the sort
+ * is not sure about keeps `needsCategory` so the app still asks. Category
+ * decides block size, what window a task may sit in, and how it ranks, so a
+ * wrong answer here is expensive — which is why the sorter is allowed to say
+ * it does not know rather than being forced to pick. With no Anthropic
+ * credentials configured, nothing is confident and every item queues for a
+ * tap, which is how this endpoint behaved before it could sort at all.
  *
  * Body: { items: [{ id, title, due? , notes? }] }
  *   id    a stable id from the source. The same reminder posted twice is
@@ -47,30 +52,47 @@ export async function POST(request: Request) {
   }
 
   const repo = repository();
-  const existing = new Set(
-    (await repo.listTasks()).map((task) => task.externalId).filter(Boolean),
+  const [tasks, history] = await Promise.all([repo.listTasks(), repo.listEstimationHistory(50)]);
+  const existing = new Set(tasks.map((task) => task.externalId).filter(Boolean));
+
+  // Drop the repeats before sorting: a daily re-post of the whole list is
+  // the expected shape, and re-sorting thirty known reminders every morning
+  // would burn tokens to reach the same answer.
+  const fresh = items.filter((item) => !existing.has(item.id));
+  const skipped = items.length - fresh.length;
+
+  const sorted = await sortReminders(
+    fresh.map((item) => ({
+      id: item.id,
+      title: item.title,
+      notes: item.notes,
+      due: item.due,
+      list: item.list,
+    })),
+    history,
+    new Date(),
   );
 
   let imported = 0;
-  let skipped = 0;
+  let needsReview = 0;
 
-  for (const item of items) {
-    if (existing.has(item.id)) {
-      skipped += 1;
-      continue;
-    }
+  for (const item of fresh) {
+    // Already imported inside this same request: the body can repeat an id.
+    if (existing.has(item.id)) continue;
+
+    const decision = sorted.get(item.id);
+    const confident = decision?.confident ?? false;
 
     await repo.createTask({
       title: item.title,
       notes: item.notes,
-      // A placeholder, not a guess. `needsCategory` is what the app reads.
-      category: "low_priority_admin",
-      location: "home",
-      estimatedBlocks: 1,
+      category: decision?.category ?? "low_priority_admin",
+      location: decision?.location ?? "home",
+      estimatedBlocks: decision?.estimatedBlocks ?? 1,
       actualBlocks: null,
       dueDate: item.due,
-      financialImpact: 3,
-      assignee: null,
+      financialImpact: decision?.financialImpact ?? 3,
+      assignee: decision?.assignee ?? null,
       handedOffAt: null,
       status: "backlog",
       isRecurring: false,
@@ -78,16 +100,18 @@ export async function POST(request: Request) {
       reminderLeadDays: 1,
       captureSource: "reminders",
       captureTranscript: null,
-      needsCategory: true,
+      // The sort's own verdict. Unconfident keeps it on the sort queue.
+      needsCategory: !confident,
       externalId: item.id,
       completedAt: null,
     });
 
     existing.add(item.id);
     imported += 1;
+    if (!confident) needsReview += 1;
   }
 
-  return NextResponse.json({ imported, skipped });
+  return NextResponse.json({ imported, skipped, sorted: imported - needsReview, needsReview });
 }
 
 interface InboxItem {
@@ -95,6 +119,8 @@ interface InboxItem {
   title: string;
   due: string | null;
   notes: string | null;
+  /** The Reminders.app list it came from. The strongest signal we get. */
+  list: string | null;
 }
 
 /** Null when the shape is wrong, so the caller gets a 400 and not a 500. */
@@ -132,6 +158,9 @@ function parseItems(body: unknown): InboxItem[] | null {
       due,
       notes: typeof record.notes === "string" && record.notes.trim() !== ""
         ? record.notes.trim().slice(0, 2000)
+        : null,
+      list: typeof record.list === "string" && record.list.trim() !== ""
+        ? record.list.trim().slice(0, 200)
         : null,
     });
   }
