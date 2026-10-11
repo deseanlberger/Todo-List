@@ -352,3 +352,68 @@ describe("estimates follow the stated category", () => {
     });
   });
 });
+
+describe("the two things his first real import got wrong", () => {
+  it("sends work on the building to the gym, not to his desk", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    const { sortReminders } = await import("./sort");
+
+    // His real reminder, which came in tagged home on the first import.
+    // Location is not cosmetic: home-tagged work will not be placed in gym
+    // time, so this would have been scheduled for a moment he is at his
+    // desk and physically cannot do it.
+    const sorted = await sortReminders(
+      [
+        {
+          id: "a",
+          title: "Check lobby temp feels right after a packed session, then lock the Nest at 83/85",
+          notes: null,
+          due: null,
+          list: "Multitasking Admin",
+        },
+      ],
+      [],
+      NOW,
+    );
+
+    expect(sorted.get("a")).toMatchObject({ location: "gym" });
+  });
+
+  it("does not give every filed reminder the same financial impact", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    const { sortReminders } = await import("./sort");
+
+    // The first import landed twelve reminders all on impact 2, which makes
+    // a field that feeds the priority ordering contribute nothing.
+    const sorted = await sortReminders(
+      [
+        { id: "admin", title: "Update my budgeting schedule", notes: null, due: null, list: "Deep Admin" },
+        { id: "chore", title: "Clear out some photos", notes: null, due: null, list: "Multitasking Admin" },
+        { id: "life", title: "Return the chair to Costco", notes: null, due: null, list: "🔵 Personal" },
+      ],
+      [],
+      NOW,
+    );
+
+    const admin = sorted.get("admin")!.financialImpact;
+    const chore = sorted.get("chore")!.financialImpact;
+    const life = sorted.get("life")!.financialImpact;
+
+    expect(admin).toBeGreaterThan(chore);
+    expect(chore).toBeGreaterThan(life);
+  });
+
+  it("still lets a rent or payroll word outrank its category", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    const { sortReminders } = await import("./sort");
+
+    const sorted = await sortReminders(
+      [{ id: "a", title: "Pay the rent", notes: null, due: null, list: "Multitasking Admin" }],
+      [],
+      NOW,
+    );
+
+    // Filed under the lowest admin bucket, but it is still rent.
+    expect(sorted.get("a")!.financialImpact).toBe(5);
+  });
+});

@@ -239,7 +239,12 @@ function fromStatedCategory(
     // admin — the list already overruled that, and the estimate has to be
     // overruled with it.
     estimatedBlocks: meta.schedules ? defaultBlocks(category) : 1,
-    financialImpact: guess.financialImpact,
+    // The keyword parser returns 5 when it matched rent or payroll and 2
+    // otherwise. That 2 is its "no idea" default, not a reading, so taking
+    // it made every filed reminder a flat 2 and left a field that feeds the
+    // priority ordering contributing nothing. The category sets the value;
+    // the parser can only raise it, and only when it actually saw money.
+    financialImpact: guess.financialImpact > 2 ? guess.financialImpact : impactOf(category),
     assignee: category === "delegate" ? guess.assignee : null,
     confident: true,
   };
@@ -283,6 +288,22 @@ function fallback(item: ReminderToSort, now: Date): SortedReminder {
     assignee: guess.assignee,
     confident: false,
   };
+}
+
+/** What a category is worth when nothing in the text says otherwise. */
+function impactOf(category: TaskCategory): number {
+  switch (category) {
+    case "high_priority_admin":
+      return 4;
+    case "deep_focus":
+      return 3;
+    case "delegate":
+      return 3;
+    case "low_priority_admin":
+      return 2;
+    case "personal":
+      return 1;
+  }
 }
 
 function clamp(value: number, min: number, max: number): number {
