@@ -25,6 +25,9 @@ export const dynamic = "force-dynamic";
  *         ignored the second time, which is what makes a daily re-post of
  *         the whole list safe.
  *   due   ISO 8601, or omitted.
+ *   done  true when the reminder has been ticked off. Those close the task
+ *         they became rather than creating one, which is what makes ticking
+ *         something off on the watch reach the app and the calendar.
  */
 export async function POST(request: Request) {
   if (!hasEnv("INBOX_SECRET")) {
@@ -53,13 +56,34 @@ export async function POST(request: Request) {
 
   const repo = repository();
   const [tasks, history] = await Promise.all([repo.listTasks(), repo.listEstimationHistory(50)]);
-  const existing = new Set(tasks.map((task) => task.externalId).filter(Boolean));
+
+  const byExternalId = new Map(
+    tasks.filter((task) => task.externalId).map((task) => [task.externalId as string, task]),
+  );
+  const existing = new Set(byExternalId.keys());
+
+  // Ticked off on the phone, the watch, or in Reminders on the Mac. Close
+  // the task it became. A completion for something never imported, or
+  // already closed, is nothing to do: the point is to converge, not to
+  // count. Nothing is created from a completed reminder, so a task deleted
+  // here cannot be resurrected by its reminder still sitting in the list.
+  let completed = 0;
+  for (const item of items) {
+    if (!item.done) continue;
+    const task = byExternalId.get(item.id);
+    if (!task || task.status === "done") continue;
+    await repo.updateTask(task.id, {
+      status: "done",
+      completedAt: new Date().toISOString(),
+    });
+    completed += 1;
+  }
 
   // Drop the repeats before sorting: a daily re-post of the whole list is
   // the expected shape, and re-sorting thirty known reminders every morning
   // would burn tokens to reach the same answer.
-  const fresh = items.filter((item) => !existing.has(item.id));
-  const skipped = items.length - fresh.length;
+  const fresh = items.filter((item) => !item.done && !existing.has(item.id));
+  const skipped = items.length - fresh.length - completed;
 
   const sorted = await sortReminders(
     fresh.map((item) => ({
@@ -111,7 +135,13 @@ export async function POST(request: Request) {
     if (!confident) needsReview += 1;
   }
 
-  return NextResponse.json({ imported, skipped, sorted: imported - needsReview, needsReview });
+  return NextResponse.json({
+    imported,
+    completed,
+    skipped,
+    sorted: imported - needsReview,
+    needsReview,
+  });
 }
 
 interface InboxItem {
@@ -121,6 +151,8 @@ interface InboxItem {
   notes: string | null;
   /** The Reminders.app list it came from. The strongest signal we get. */
   list: string | null;
+  /** Ticked off at the source. Closes a task rather than creating one. */
+  done: boolean;
 }
 
 /** Null when the shape is wrong, so the caller gets a 400 and not a 500. */
@@ -162,6 +194,7 @@ function parseItems(body: unknown): InboxItem[] | null {
       list: typeof record.list === "string" && record.list.trim() !== ""
         ? record.list.trim().slice(0, 200)
         : null,
+      done: record.done === true,
     });
   }
 

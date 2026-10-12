@@ -1,5 +1,6 @@
-// Reads open reminders out of Reminders.app and prints the JSON body that
-// POST /api/inbox expects.
+// Reads reminders out of Reminders.app and prints the JSON body that
+// POST /api/inbox expects: the open ones to import, and the recently
+// completed ones so the server can close the tasks they became.
 //
 // Run with:  osascript -l JavaScript read-reminders.js
 //
@@ -13,6 +14,13 @@
 // reachable only from code running on a signed-in Apple device. The Mac has
 // to push; nothing can pull.
 //
+// Completed reminders used to be skipped outright, which left ticking a
+// reminder off on the phone or the watch doing nothing: the task stayed
+// open in the app forever and its calendar event never cleared. They are
+// reported now, with `done: true`, but only the recent ones. A list carries
+// every reminder you have ever finished, and posting years of them twice an
+// hour would be a large body to say nothing.
+//
 // SPEED. Every property access across the JXA bridge is a separate Apple
 // Event, and they cost milliseconds each. Reading four properties off each
 // of four hundred reminders one at a time is sixteen hundred round trips,
@@ -22,8 +30,18 @@
 // many reminders are in it. That is the difference between this finishing
 // in about a second and not appearing to finish at all.
 
+/**
+ * How far back a completed reminder still counts as news.
+ *
+ * Long enough that a Mac switched off for a holiday still catches up, and
+ * long enough to sweep up anything ticked off while completions were being
+ * thrown away. Short enough that the body stays small.
+ */
+const COMPLETED_WINDOW_DAYS = 30;
+
 function run() {
   const Reminders = Application("Reminders");
+  const oldestCompletion = Date.now() - COMPLETED_WINDOW_DAYS * 24 * 60 * 60 * 1000;
   const items = [];
   const problems = [];
 
@@ -52,8 +70,8 @@ function run() {
       listName = "";
     }
 
-    // Five bulk reads per list, not five per reminder.
-    let names, ids, dues, bodies, done;
+    // Six bulk reads per list, not six per reminder.
+    let names, ids, dues, bodies, done, finishedAt;
     try {
       const rows = list.reminders;
       names = rows.name();
@@ -61,14 +79,26 @@ function run() {
       ids = rows.id();
       dues = rows.dueDate();
       bodies = rows.body();
+      finishedAt = rows.completionDate();
     } catch (error) {
       problems.push("list " + i + ": " + String(error));
       continue;
     }
 
     for (let j = 0; j < names.length; j++) {
-      // Completed work is finished; it is not a task to schedule.
-      if (done && done[j] === true) continue;
+      const isDone = Boolean(done && done[j] === true);
+
+      // A completed reminder is news only while it is recent. One with no
+      // completion date at all is reported: Reminders does not always carry
+      // one, and a task left open is worse than a duplicate close, which
+      // the server ignores anyway.
+      if (isDone) {
+        const raw = finishedAt ? finishedAt[j] : null;
+        if (raw) {
+          const at = new Date(raw).getTime();
+          if (!Number.isNaN(at) && at < oldestCompletion) continue;
+        }
+      }
 
       const title = String(names[j] == null ? "" : names[j]).trim();
       if (title === "") continue;
@@ -99,6 +129,7 @@ function run() {
       const entry = { title: title, due: due, notes: notes };
       if (id !== "") entry.id = id;
       if (listName !== "") entry.list = listName;
+      if (isDone) entry.done = true;
       items.push(entry);
     }
   }

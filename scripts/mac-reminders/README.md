@@ -84,13 +84,28 @@ before you trust it.
 You get back something like:
 
 ```json
-{"imported": 12, "skipped": 0, "sorted": 9, "needsReview": 3}
+{"imported": 12, "completed": 2, "skipped": 0, "sorted": 9, "needsReview": 3}
 ```
 
 - `imported` — new tasks created
+- `completed` — tasks closed because you ticked the reminder off
 - `skipped` — already imported on a previous run
 - `sorted` — confident enough to use as-is
-- `needsReview` — waiting for one tap on Today
+- `needsReview` — waiting for one tap in the app
+
+### Ticking things off
+
+Completions travel in the same payload, carrying `done: true`, and close the
+task they became. So ticking a reminder off on your watch, your phone or in
+Reminders on the Mac clears it from the app and deletes its calendar event
+on the next run. One place to finish something, wherever you happen to be.
+
+A completed reminder never creates a task. If the app has never seen it,
+nothing happens: finished work does not get put back on the calendar.
+
+Only completions from the **last 30 days** are sent. Every list carries
+everything you have ever finished, and posting years of it twice an hour
+would be a large body that says nothing new.
 
 ### 5. Make it automatic
 

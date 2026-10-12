@@ -22,6 +22,7 @@ interface Row {
   id: string | null;
   dueDate: Date | null;
   body: string | null;
+  completionDate?: Date | null;
 }
 
 /**
@@ -40,12 +41,33 @@ function makeList(rows: Row[], throwOn?: keyof Row) {
       id: column("id"),
       dueDate: column("dueDate"),
       body: column("body"),
+      completionDate: column("completionDate"),
     },
   };
 }
 
+/** Shorthand for a row, so a test reads as what it is testing. */
+function row(partial: Partial<Row> & { name: string }): Row {
+  return {
+    completed: false,
+    id: partial.name,
+    dueDate: null,
+    body: null,
+    completionDate: null,
+    ...partial,
+  };
+}
+
+const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
 interface Payload {
-  items: { title: string; due: string | null; notes: string | null; id?: string }[];
+  items: {
+    title: string;
+    due: string | null;
+    notes: string | null;
+    id?: string;
+    done?: boolean;
+  }[];
   problems?: string[];
   error?: string;
 }
@@ -74,11 +96,10 @@ function runReader(lists: unknown[], listsThrow = false): Payload {
 }
 
 describe("reading reminders off a Mac", () => {
-  it("keeps open work and drops what is already done", () => {
+  it("sends open work unflagged", () => {
     const out = runReader([
       makeList([
         { name: "Write SMHS volleyball block 3", completed: false, id: "1", dueDate: new Date("2026-10-15T17:00:00Z"), body: null },
-        { name: "Already did this", completed: true, id: "2", dueDate: null, body: null },
         { name: "Order chalk", completed: false, id: "3", dueDate: null, body: "the good kind" },
       ]),
     ]);
@@ -87,6 +108,42 @@ describe("reading reminders off a Mac", () => {
       "Write SMHS volleyball block 3",
       "Order chalk",
     ]);
+    expect(out.items.every((item) => item.done === undefined)).toBe(true);
+  });
+
+  it("reports a recent completion so the server can close the task", () => {
+    const out = runReader([
+      makeList([
+        row({ name: "Ticked off yesterday", completed: true, completionDate: daysAgo(1) }),
+      ]),
+    ]);
+
+    expect(out.items).toHaveLength(1);
+    expect(out.items[0].title).toBe("Ticked off yesterday");
+    expect(out.items[0].done).toBe(true);
+  });
+
+  it("leaves behind a completion older than the window", () => {
+    // Every list carries everything ever finished. Posting years of it
+    // twice an hour would be a large body that says nothing new.
+    const out = runReader([
+      makeList([
+        row({ name: "Done in the spring", completed: true, completionDate: daysAgo(400) }),
+        row({ name: "Done last week", completed: true, completionDate: daysAgo(7) }),
+      ]),
+    ]);
+
+    expect(out.items.map((item) => item.title)).toEqual(["Done last week"]);
+  });
+
+  it("reports a completion with no date rather than dropping it", () => {
+    // A task left open forever is worse than a duplicate close, and the
+    // server ignores a close for something already closed.
+    const out = runReader([
+      makeList([row({ name: "Done, date unknown", completed: true, completionDate: null })]),
+    ]);
+
+    expect(out.items[0].done).toBe(true);
   });
 
   it("converts a due date to ISO and leaves a missing one null", () => {
